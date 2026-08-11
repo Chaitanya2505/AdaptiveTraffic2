@@ -54,11 +54,13 @@ Thumbs.db
 *.tmp
 *.bak
 
-# Research / models artifacts
-research/models/*.pt
-research/models/*.pth
-research/models/*.onnx
-research/models/*.bin
+# ML / Vision models artifacts
+*.pt
+*.pth
+*.onnx
+*.bin
+*.engine
+backend/ml_models/
 research/models/output/
 research/models/images/output/
 

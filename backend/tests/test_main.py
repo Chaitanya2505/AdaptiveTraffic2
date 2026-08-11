@@ -110,7 +110,10 @@ async def test_vision_and_violations():
         headers = {"Authorization": f"Bearer {token}"}
 
         # 1. Run vision detection simulation with file upload
-        mock_file = BytesIO(b"fake image data")
+        import cv2
+        import numpy as np
+        _, img_encoded = cv2.imencode('.jpg', np.zeros((50, 50, 3), dtype=np.uint8))
+        mock_file = BytesIO(img_encoded.tobytes())
         files = {"file": ("test.jpg", mock_file, "image/jpeg")}
         data = {"junction_id": "J-001"}
         
