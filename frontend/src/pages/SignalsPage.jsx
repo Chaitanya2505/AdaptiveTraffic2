@@ -14,8 +14,9 @@ import {
   ArrowDown, 
   ArrowRight, 
   ArrowLeft,
-  Power,
-  Sliders
+  Activity,
+  Radio,
+  ScanLine
 } from 'lucide-react';
 
 const PRESET_DURATIONS = [15, 30, 45, 60, 90, 120];
@@ -29,27 +30,14 @@ const SIGNAL_PHASES = [
 
 export default function SignalsPage() {
   const junctions = useDataStore((state) => state.junctions);
+  const visionSignalState = useDataStore((state) => state.visionSignalState);
+  const setVisionSignalState = useDataStore((state) => state.setVisionSignalState);
+
   const [selectedJunction, setSelectedJunction] = useState('J-001');
 
   // Target phase & duration
   const [targetPhase, setTargetPhase] = useState('LANE_1_NORTH');
   const [manualDuration, setManualDuration] = useState(30);
-
-  // Individual light state for each of the 4 lanes (L1, L2, L3, L4)
-  const [laneLightStates, setLaneLightStates] = useState({
-    LANE_1_NORTH: 'GREEN',
-    LANE_2_SOUTH: 'RED',
-    LANE_3_EAST: 'RED',
-    LANE_4_WEST: 'RED'
-  });
-
-  // Dynamic Live Signal Light State for the main active lane monitor
-  const [activeSignal, setActiveSignal] = useState({
-    phase: 'LANE_1_NORTH',
-    duration: 30,
-    remainingSec: 30,
-    lightColor: 'GREEN' // 'GREEN' | 'YELLOW' | 'RED'
-  });
 
   const [history, setHistory] = useState([]);
   const { loading, request } = useApi();
@@ -71,107 +59,92 @@ export default function SignalsPage() {
     fetchSignalHistory();
   }, [selectedJunction]);
 
-  // Real-time Dynamic Countdown & Auto Light Transition (Green -> Orange/Yellow -> Red)
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setActiveSignal((prev) => {
-        if (prev.remainingSec <= 0) {
-          return {
-            ...prev,
-            remainingSec: 0,
-            lightColor: 'RED'
-          };
-        }
-
-        const nextSec = prev.remainingSec - 1;
-        let nextColor = 'GREEN';
-
-        // When remaining time <= 5 seconds, switch to Orange/Yellow caution light
-        if (nextSec <= 5 && nextSec > 0) {
-          nextColor = 'YELLOW';
-        } else if (nextSec <= 0) {
-          nextColor = 'RED';
-        }
-
-        // Keep lane matrix state in sync with primary active lane
-        setLaneLightStates(lanePrev => ({
-          ...lanePrev,
-          [prev.phase]: nextColor
-        }));
-
-        return {
-          ...prev,
-          remainingSec: nextSec,
-          lightColor: nextColor
-        };
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
   const simulateOfflineHistory = () => {
     setHistory([
-      { id: 201, junction_id: selectedJunction, phase: 'LANE_1_NORTH', duration: 45, mode: 'MANUAL', timestamp: new Date(Date.now() - 45000).toISOString() },
-      { id: 202, junction_id: selectedJunction, phase: 'LANE_3_EAST', duration: 30, mode: 'MANUAL', timestamp: new Date(Date.now() - 180000).toISOString() },
+      { id: 201, junction_id: selectedJunction, phase: 'LANE_1_NORTH', duration: 35, mode: 'VISION_AI', timestamp: new Date(Date.now() - 45000).toISOString() },
+      { id: 202, junction_id: selectedJunction, phase: 'LANE_3_EAST', duration: 50, mode: 'VISION_AI', timestamp: new Date(Date.now() - 180000).toISOString() },
       { id: 203, junction_id: selectedJunction, phase: 'ALL_RED', duration: 30, mode: 'MANUAL', timestamp: new Date(Date.now() - 420000).toISOString() }
     ]);
   };
 
-  // Set single lane to GREEN or RED directly
+  // Current live active state
+  const activePhase = visionSignalState?.activeLaneId || 'LANE_1_NORTH';
+  const remainingSec = visionSignalState?.remainingSec ?? 35;
+  const lightColor = visionSignalState?.lightColor || 'GREEN';
+  const masterMode = visionSignalState?.masterMode || 'DYNAMIC_CYCLE';
+  const statusMessage = visionSignalState?.statusMessage || 'Vision AI Dynamic Cycle Active';
+
+  // Set single lane to GREEN or RED directly from 4-Lane Matrix
   const handleSetLaneLight = (laneId, targetColor) => {
     setTargetPhase(laneId);
 
     if (targetColor === 'GREEN') {
       const durNum = manualDuration || 30;
-      setLaneLightStates({
-        LANE_1_NORTH: laneId === 'LANE_1_NORTH' ? 'GREEN' : 'RED',
-        LANE_2_SOUTH: laneId === 'LANE_2_SOUTH' ? 'GREEN' : 'RED',
-        LANE_3_EAST: laneId === 'LANE_3_EAST' ? 'GREEN' : 'RED',
-        LANE_4_WEST: laneId === 'LANE_4_WEST' ? 'GREEN' : 'RED'
-      });
-      setActiveSignal({
-        phase: laneId,
-        duration: durNum,
+      setVisionSignalState({
+        activeLaneId: laneId,
         remainingSec: durNum,
-        lightColor: 'GREEN'
+        totalDuration: durNum,
+        lightColor: 'GREEN',
+        masterMode: 'DYNAMIC_CYCLE',
+        statusMessage: `Manual Green Active for ${laneId.replace(/_/g, ' ')}`,
+        isAutoCycleActive: true
       });
       handleApplyOverride(laneId, durNum);
     } else {
-      // Set to RED
-      setLaneLightStates(prev => ({ ...prev, [laneId]: 'RED' }));
-      if (activeSignal.phase === laneId) {
-        setActiveSignal(prev => ({ ...prev, remainingSec: 0, lightColor: 'RED' }));
-      }
+      setVisionSignalState(prev => ({
+        ...prev,
+        lightColor: 'RED',
+        remainingSec: 0
+      }));
     }
   };
 
-  // Set ALL lanes to RED or ALL lanes to GREEN
+  // Master Global controls: ALL RED or ALL GREEN
   const handleSetAllLanes = (targetColor) => {
-    if (targetColor === 'RED') {
-      setLaneLightStates({
-        LANE_1_NORTH: 'RED',
-        LANE_2_SOUTH: 'RED',
-        LANE_3_EAST: 'RED',
-        LANE_4_WEST: 'RED'
+    const holdSec = manualDuration || 15;
+
+    if (targetColor === 'GREEN') {
+      setVisionSignalState({
+        activeLaneId: 'ALL_GREEN',
+        remainingSec: holdSec,
+        totalDuration: holdSec,
+        lightColor: 'GREEN',
+        masterMode: 'ALL_GREEN_HOLD',
+        statusMessage: `FORCE ALL GREEN ACTIVE (${holdSec}s Hold)`,
+        isAutoCycleActive: true
       });
-      setActiveSignal(prev => ({ ...prev, phase: 'ALL_RED', remainingSec: 0, lightColor: 'RED' }));
-      handleApplyOverride('ALL_RED', 30);
+      handleApplyOverride('ALL_GREEN', holdSec);
     } else {
-      setLaneLightStates({
-        LANE_1_NORTH: 'GREEN',
-        LANE_2_SOUTH: 'GREEN',
-        LANE_3_EAST: 'GREEN',
-        LANE_4_WEST: 'GREEN'
+      setVisionSignalState({
+        activeLaneId: 'ALL_RED',
+        remainingSec: 15,
+        totalDuration: 15,
+        lightColor: 'RED',
+        masterMode: 'ALL_RED_HOLD',
+        statusMessage: 'EMERGENCY ALL RED ACTIVE (15s Clearance Hold)',
+        isAutoCycleActive: true
       });
-      setActiveSignal(prev => ({ ...prev, phase: 'ALL_GREEN', remainingSec: manualDuration, lightColor: 'GREEN' }));
-      handleApplyOverride('ALL_GREEN', manualDuration);
+      handleApplyOverride('ALL_RED', 15);
     }
+  };
+
+  // Resume Vision Sensing Auto Stream Cycle
+  const handleResumeVisionAutoCycle = () => {
+    const l1Duration = visionSignalState?.laneTimers?.['LANE_1_NORTH']?.duration || 35;
+    setVisionSignalState({
+      activeLaneId: 'LANE_1_NORTH',
+      activeLaneIndex: 0,
+      remainingSec: l1Duration,
+      totalDuration: l1Duration,
+      lightColor: 'GREEN',
+      masterMode: 'DYNAMIC_CYCLE',
+      statusMessage: 'Vision AI Dynamic Cycle Resumed',
+      isAutoCycleActive: true
+    });
   };
 
   const handleApplyOverride = async (phaseToApply = targetPhase, durationToApply = manualDuration) => {
     const durNum = parseInt(durationToApply) || 30;
-    const initialColor = durNum > 5 ? 'GREEN' : durNum > 0 ? 'YELLOW' : 'RED';
 
     try {
       const result = await request('post', `/signals/${selectedJunction}/apply`, {
@@ -181,12 +154,6 @@ export default function SignalsPage() {
       });
 
       updateSignal(result);
-      setActiveSignal({
-        phase: phaseToApply,
-        duration: durNum,
-        remainingSec: durNum,
-        lightColor: phaseToApply === 'ALL_RED' ? 'RED' : initialColor
-      });
       fetchSignalHistory();
     } catch (err) {
       const mockResult = {
@@ -198,12 +165,6 @@ export default function SignalsPage() {
         timestamp: new Date().toISOString()
       };
       updateSignal(mockResult);
-      setActiveSignal({
-        phase: phaseToApply,
-        duration: durNum,
-        remainingSec: durNum,
-        lightColor: phaseToApply === 'ALL_RED' ? 'RED' : initialColor
-      });
       setHistory((prev) => [mockResult, ...prev]);
     }
   };
@@ -215,15 +176,32 @@ export default function SignalsPage() {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold text-white tracking-tight">Manual Signal Control</h2>
-            <Badge variant="warning" className="text-[10px]">Manual Override Active</Badge>
+            <Badge variant={masterMode === 'DYNAMIC_CYCLE' ? 'success' : masterMode === 'SCANNING_TRAFFIC' ? 'info' : 'warning'} className="text-[10px] flex items-center gap-1">
+              <Radio className="h-3 w-3 animate-pulse text-emerald-400" />
+              {masterMode === 'ALL_GREEN_HOLD' ? 'ALL GREEN HOLD ACTIVE' :
+               masterMode === 'ALL_RED_HOLD' ? 'EMERGENCY ALL RED HOLD' :
+               masterMode === 'SCANNING_TRAFFIC' ? 'SCANNING TRAFFIC DENSITY...' :
+               'SYNCED WITH VISION SENSING CCTV STREAM'}
+            </Badge>
           </div>
           <p className="text-xs text-slate-400 font-medium">
-            Select junction, override signal lights for 4 approach lanes (Green / Red toggles), and set dynamic manual timers.
+            {statusMessage}
           </p>
         </div>
 
-        {/* Junction Selector */}
-        <div className="flex items-center gap-3">
+        {/* Junction Selector & Auto Stream Resume */}
+        <div className="flex flex-wrap items-center gap-3">
+          {masterMode !== 'DYNAMIC_CYCLE' && (
+            <button
+              type="button"
+              onClick={handleResumeVisionAutoCycle}
+              className="py-2 px-3 rounded-lg border border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold transition-all flex items-center gap-1.5 shadow-md"
+            >
+              <Activity className="h-3.5 w-3.5" />
+              Resume Vision AI Cycle
+            </button>
+          )}
+
           <div className="flex items-center gap-2.5 bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5">
             <MapPin className="h-4 w-4 text-emerald-400 shrink-0" />
             <div className="flex flex-col">
@@ -245,7 +223,7 @@ export default function SignalsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Left Column: Live Traffic Light Display & Emergency Controls */}
+        {/* Left Column: Live Physical Traffic Light Head Monitor */}
         <div className="space-y-6 lg:col-span-1">
           {/* Physical Traffic Light State Monitor */}
           <Card title="Live Traffic Light Monitor" subtitle={`Real-time signal head at ${currentJunctionObj?.name}`}>
@@ -254,34 +232,34 @@ export default function SignalsPage() {
               <div className="w-24 bg-slate-900 border-4 border-slate-800 rounded-3xl p-4 flex flex-col items-center gap-4 shadow-2xl relative">
                 {/* Red Light */}
                 <div className={`w-14 h-14 rounded-full border-2 border-black/40 transition-all duration-300 flex items-center justify-center ${
-                  activeSignal.lightColor === 'RED'
+                  lightColor === 'RED'
                     ? 'bg-red-500 shadow-[0_0_25px_#ef4444] border-red-300 animate-pulse'
                     : 'bg-red-950/30'
                 }`}>
-                  {activeSignal.lightColor === 'RED' && (
-                    <span className="text-white text-xs font-black font-mono">{activeSignal.remainingSec}s</span>
+                  {lightColor === 'RED' && (
+                    <span className="text-white text-xs font-black font-mono">{remainingSec}s</span>
                   )}
                 </div>
 
                 {/* Orange / Yellow Light */}
                 <div className={`w-14 h-14 rounded-full border-2 border-black/40 transition-all duration-300 flex items-center justify-center ${
-                  activeSignal.lightColor === 'YELLOW'
+                  lightColor === 'YELLOW' || masterMode === 'SCANNING_TRAFFIC'
                     ? 'bg-amber-400 shadow-[0_0_25px_#f59e0b] border-amber-200 animate-pulse'
                     : 'bg-amber-950/30'
                 }`}>
-                  {activeSignal.lightColor === 'YELLOW' && (
-                    <span className="text-black text-xs font-black font-mono">{activeSignal.remainingSec}s</span>
+                  {(lightColor === 'YELLOW' || masterMode === 'SCANNING_TRAFFIC') && (
+                    <span className="text-black text-xs font-black font-mono">{remainingSec}s</span>
                   )}
                 </div>
 
                 {/* Green Light */}
                 <div className={`w-14 h-14 rounded-full border-2 border-black/40 transition-all duration-300 flex items-center justify-center ${
-                  activeSignal.lightColor === 'GREEN'
+                  lightColor === 'GREEN' && masterMode !== 'SCANNING_TRAFFIC'
                     ? 'bg-emerald-500 shadow-[0_0_25px_#10b981] border-emerald-300'
                     : 'bg-emerald-950/30'
                 }`}>
-                  {activeSignal.lightColor === 'GREEN' && (
-                    <span className="text-white text-xs font-black font-mono">{activeSignal.remainingSec}s</span>
+                  {lightColor === 'GREEN' && masterMode !== 'SCANNING_TRAFFIC' && (
+                    <span className="text-white text-xs font-black font-mono">{remainingSec}s</span>
                   )}
                 </div>
               </div>
@@ -291,25 +269,29 @@ export default function SignalsPage() {
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Current Signal Light Status</span>
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800">
                   <span className={`w-2.5 h-2.5 rounded-full ${
-                    activeSignal.lightColor === 'GREEN' ? 'bg-emerald-400 shadow-[0_0_8px_#10b981]' :
-                    activeSignal.lightColor === 'YELLOW' ? 'bg-amber-400 shadow-[0_0_8px_#f59e0b]' :
+                    masterMode === 'SCANNING_TRAFFIC' ? 'bg-cyan-400 shadow-[0_0_8px_#22d3ee] animate-ping' :
+                    lightColor === 'GREEN' ? 'bg-emerald-400 shadow-[0_0_8px_#10b981]' :
+                    lightColor === 'YELLOW' ? 'bg-amber-400 shadow-[0_0_8px_#f59e0b]' :
                     'bg-red-500 shadow-[0_0_8px_#ef4444]'
                   }`} />
                   <span className="text-xs font-extrabold text-white tracking-wide uppercase">
-                    {activeSignal.lightColor === 'GREEN' ? 'GREEN LIGHT (GO)' :
-                     activeSignal.lightColor === 'YELLOW' ? 'ORANGE LIGHT (SLOW DOWN)' :
+                    {masterMode === 'SCANNING_TRAFFIC' ? 'SCANNING CCTV FEEDS...' :
+                     masterMode === 'ALL_GREEN_HOLD' ? 'ALL LANES GREEN (HOLD)' :
+                     masterMode === 'ALL_RED_HOLD' ? 'ALL LANES RED (EMERGENCY)' :
+                     lightColor === 'GREEN' ? 'GREEN LIGHT (GO)' :
+                     lightColor === 'YELLOW' ? 'ORANGE LIGHT (SLOW DOWN)' :
                      'RED LIGHT (STOP)'}
                   </span>
                 </div>
                 <span className="text-xs text-slate-400 font-medium block pt-1">
-                  Active Lane: <strong className="text-emerald-400">{activeSignal.phase.replace(/_/g, ' ')}</strong>
+                  Active State: <strong className="text-emerald-400">{masterMode === 'SCANNING_TRAFFIC' ? 'AI Scanning' : activePhase.replace(/_/g, ' ')}</strong>
                 </span>
               </div>
             </div>
           </Card>
 
           {/* Instant Global Controls */}
-          <Card title="Global Signal Controls" subtitle="Master red / green controls for junction">
+          <Card title="Global Master Controls" subtitle="Master red / green switches with auto traffic scan & cycle resumption">
             <div className="space-y-3">
               <Button
                 variant="danger"
@@ -331,29 +313,50 @@ export default function SignalsPage() {
           </Card>
         </div>
 
-        {/* Center & Right Columns: 4 Lane Direct Manual Light Matrix & Custom Timer */}
+        {/* Center & Right Columns: 4 Lane Direct Manual Light Matrix & Vision Telemetry */}
         <div className="space-y-6 lg:col-span-2">
-          {/* 4-Lane Direct Manual Light Matrix */}
+          {/* 4-Lane Direct Manual Light Switches */}
           <Card 
             title="4-Lane Direct Manual Light Switches" 
-            subtitle="Individually control each approach lane to RED or GREEN state"
+            subtitle="Synced live telemetry from Vision Sensing: vehicle breakdown, queue tailbacks, and dynamic timers"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {SIGNAL_PHASES.map((p) => {
                 const IconComponent = p.icon;
-                const currentLight = laneLightStates[p.id] || 'RED';
+                const isCurrentActive = activePhase === p.id && masterMode === 'DYNAMIC_CYCLE';
+                const isAllGreenMode = masterMode === 'ALL_GREEN_HOLD';
+                const isAllRedMode = masterMode === 'ALL_RED_HOLD';
+                const isScanning = masterMode === 'SCANNING_TRAFFIC';
+                const laneData = visionSignalState?.laneTimers?.[p.id] || { 
+                  duration: 30, vehicles: 5, meters: 18.5, density: 'MODERATE (40%)', cars: 3, bikes: 2, autos: 1, buses: 0, trucks: 0 
+                };
+
+                let currentLight = 'RED';
+                if (isAllGreenMode) {
+                  currentLight = 'GREEN';
+                } else if (isAllRedMode) {
+                  currentLight = 'RED';
+                } else if (isScanning) {
+                  currentLight = 'YELLOW';
+                } else if (isCurrentActive) {
+                  currentLight = lightColor;
+                }
+
                 const isGreen = currentLight === 'GREEN';
                 const isYellow = currentLight === 'YELLOW';
 
                 return (
                   <div
                     key={p.id}
-                    className={`p-4 rounded-xl border transition-all flex flex-col justify-between gap-3 ${
-                      isGreen
-                        ? 'border-emerald-500/60 bg-emerald-950/20 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
-                        : isYellow
-                        ? 'border-amber-500/60 bg-amber-950/20 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
-                        : 'border-slate-800 bg-slate-900/50'
+                    onClick={() => setTargetPhase(p.id)}
+                    className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between gap-3 ${
+                      isCurrentActive || isAllGreenMode
+                        ? isGreen
+                          ? 'border-emerald-500 bg-emerald-950/20 shadow-[0_0_20px_rgba(16,185,129,0.25)] ring-2 ring-emerald-500/40'
+                          : isYellow
+                          ? 'border-amber-500 bg-amber-950/20 shadow-[0_0_20px_rgba(245,158,11,0.25)] ring-2 ring-amber-500/40'
+                          : 'border-red-500 bg-red-950/20 ring-2 ring-red-500/40'
+                        : 'border-slate-800 bg-slate-900/50 hover:bg-slate-900'
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -369,15 +372,33 @@ export default function SignalsPage() {
 
                       {/* Current Light Badge */}
                       <Badge variant={isGreen ? 'success' : isYellow ? 'warning' : 'danger'}>
-                        {isGreen ? '🟢 GREEN' : isYellow ? '🟡 ORANGE' : '🔴 RED'}
+                        {isScanning ? '🔍 SCANNING...' : isGreen ? `🟢 GREEN (${remainingSec}s)` : isYellow ? `🟡 ORANGE (${remainingSec}s)` : '🔴 RED'}
                       </Badge>
                     </div>
 
+                    {/* Vision Sensing Synced Telemetry Display */}
+                    <div className="bg-slate-950/80 p-3 rounded-lg border border-slate-850 space-y-2">
+                      <div className="flex items-center justify-between text-xs text-white">
+                        <span>Total Vehicles: <strong className="text-emerald-400 font-mono">{laneData.vehicles} veh</strong></span>
+                        <span>Queue: <strong className="text-cyan-400 font-mono">{laneData.meters}m</strong></span>
+                        <span>Allocated Time: <strong className="text-amber-400 font-mono">{laneData.duration}s</strong></span>
+                      </div>
+
+                      {/* Class breakdown icons */}
+                      <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-slate-900 text-[10px] text-slate-400">
+                        <span>🚗 Cars: <strong className="text-slate-200">{laneData.cars ?? 2}</strong></span>
+                        <span>🏍 2W: <strong className="text-slate-200">{laneData.bikes ?? 1}</strong></span>
+                        <span>🛺 Autos: <strong className="text-slate-200">{laneData.autos ?? 1}</strong></span>
+                        <span>🚌 Buses: <strong className="text-slate-200">{laneData.buses ?? 0}</strong></span>
+                        <span>🚚 Heavy: <strong className="text-slate-200">{laneData.trucks ?? 0}</strong></span>
+                      </div>
+                    </div>
+
                     {/* Individual Manual Action Buttons */}
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-850">
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-850">
                       <button
                         type="button"
-                        onClick={() => handleSetLaneLight(p.id, 'GREEN')}
+                        onClick={(e) => { e.stopPropagation(); handleSetLaneLight(p.id, 'GREEN'); }}
                         className={`py-2 px-3 rounded-lg font-extrabold text-xs transition-all border flex items-center justify-center gap-1.5 ${
                           isGreen
                             ? 'bg-emerald-500 text-white border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.4)]'
@@ -389,7 +410,7 @@ export default function SignalsPage() {
 
                       <button
                         type="button"
-                        onClick={() => handleSetLaneLight(p.id, 'RED')}
+                        onClick={(e) => { e.stopPropagation(); handleSetLaneLight(p.id, 'RED'); }}
                         className={`py-2 px-3 rounded-lg font-extrabold text-xs transition-all border flex items-center justify-center gap-1.5 ${
                           !isGreen && !isYellow
                             ? 'bg-red-600 text-white border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.4)]'
@@ -460,7 +481,7 @@ export default function SignalsPage() {
           </Card>
 
           {/* Manual Timing History Logs Table */}
-          <Card title="Manual Signal Override Log History" subtitle="Recent manual controller overrides issued for selected location">
+          <Card title="Manual & Vision Controller Log History" subtitle="Recent signal controller overrides logged for selected location">
             <div className="overflow-x-auto max-h-64">
               <table className="w-full text-left text-xs text-slate-300">
                 <thead>
@@ -485,7 +506,9 @@ export default function SignalsPage() {
                           {h.duration} Seconds
                         </td>
                         <td className="py-3 px-3">
-                          <Badge variant={isRed ? 'danger' : 'warning'}>MANUAL OVERRIDE</Badge>
+                          <Badge variant={isRed ? 'danger' : h.mode === 'VISION_AI' ? 'success' : 'warning'}>
+                            {h.mode}
+                          </Badge>
                         </td>
                         <td className="py-3 px-3 text-right text-slate-400 font-mono">
                           {new Date(h.timestamp).toLocaleTimeString()}
