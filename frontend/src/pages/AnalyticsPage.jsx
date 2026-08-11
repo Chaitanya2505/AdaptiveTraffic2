@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { BarChart3, TrendingUp, HelpCircle, HardHat } from 'lucide-react';
+import { BarChart3, TrendingUp, HelpCircle, HardHat, Map as MapIcon } from 'lucide-react';
+import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 
 const mockTrendData = [
   { time: '08:00', volume: 850, queue: 15 },
@@ -27,6 +29,19 @@ const mockBottlenecks = [
 ];
 
 export default function AnalyticsPage() {
+  const [heatmapData, setHeatmapData] = useState([]);
+
+  useEffect(() => {
+    fetch('http://localhost:8000/analytics/heatmap')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.data) {
+          setHeatmapData(data.data);
+        }
+      })
+      .catch(err => console.error("Error fetching heatmap:", err));
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
@@ -35,6 +50,38 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Heatmap Card */}
+        <div className="lg:col-span-3 space-y-6">
+          <Card 
+            title="Congestion Heatmap" 
+            subtitle="Live hotspot intensity map computed from traffic junctions"
+            action={<MapIcon className="h-5 w-5 text-emerald-400" />}
+          >
+            <div className="h-96 w-full rounded-lg overflow-hidden border border-slate-800">
+              <MapContainer center={[21.1702, 72.8311]} zoom={12} style={{ height: '100%', width: '100%' }}>
+                <TileLayer
+                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                  attribution='&copy; <a href="https://carto.com/">CartoDB</a>'
+                />
+                {heatmapData.map((pt, idx) => (
+                  <CircleMarker 
+                    key={idx}
+                    center={[pt.lat, pt.lng]} 
+                    radius={15 * (0.5 + pt.intensity)}
+                    fillColor="#ef4444"
+                    fillOpacity={pt.intensity * 0.8 + 0.2}
+                    stroke={false}
+                  >
+                    <Popup className="text-slate-900 font-bold">
+                      Junction: {pt.id}<br/>Intensity: {(pt.intensity * 100).toFixed(0)}%
+                    </Popup>
+                  </CircleMarker>
+                ))}
+              </MapContainer>
+            </div>
+          </Card>
+        </div>
+
         {/* Trend Chart */}
         <div className="lg:col-span-2 space-y-6">
           <Card 

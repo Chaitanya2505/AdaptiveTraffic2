@@ -530,7 +530,7 @@ export default function SimulationPage() {
   const handleTlModeToggle = (e) => {
     const mode = e.target.checked ? "manual" : "auto";
     sendControlMessage({ type: "set_tl_mode", mode: mode });
-    logMessage(`Traffic light controller set to ${mode.toUpperCase()} mode.`, "system");
+    logMessage(`Traffic light controller set to ${mode === 'manual' ? 'MANUAL' : 'WEBSTER ADAPTIVE'} mode.`, "system");
   };
 
   const handleSelectPhase = (tlsId, index) => {
@@ -684,8 +684,8 @@ export default function SimulationPage() {
               <div className="flex items-center justify-between p-3 rounded-lg border border-slate-900 bg-slate-950">
                 <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Controller Mode</span>
                 <div className="flex items-center gap-3">
-                  <span className={`text-xs font-bold ${configState.isManualTl ? 'text-orange-400' : 'text-emerald-400'}`}>
-                    {configState.isManualTl ? 'MANUAL' : 'AUTO'}
+                  <span className={`text-[10px] font-bold px-2 py-1 rounded ${configState.isManualTl ? 'bg-orange-500/20 text-orange-400' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_8px_rgba(16,185,129,0.2)]'}`}>
+                    {configState.isManualTl ? 'MANUAL' : 'WEBSTER ADAPTIVE'}
                   </span>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input

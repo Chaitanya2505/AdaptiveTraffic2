@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
@@ -18,6 +18,29 @@ const mockForecastData = [
 
 export default function PredictionsPage() {
   const [selectedHorizon, setSelectedHorizon] = useState('30_min');
+  const [forecastData, setForecastData] = useState(mockForecastData);
+
+  useEffect(() => {
+    fetch('http://localhost:8000/analytics/predict?junction_id=J-001')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.forecast) {
+          const mapped = data.forecast.map((item, index) => {
+            const date = new Date(item.timestamp);
+            const timeLabel = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+            // Simulate actual vs predicted for the first few points
+            const isHistory = index < 3;
+            return {
+              time: timeLabel,
+              actual: isHistory ? item.predicted_volume - Math.floor(Math.random() * 5) : null,
+              predicted: item.predicted_volume
+            };
+          });
+          setForecastData(mapped.slice(0, 10)); // Show next 10 points
+        }
+      })
+      .catch(err => console.error("Error fetching forecast:", err));
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -46,7 +69,7 @@ export default function PredictionsPage() {
           >
             <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={mockForecastData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <LineChart data={forecastData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                   <XAxis dataKey="time" stroke="#64748b" fontSize={10} />
                   <YAxis stroke="#64748b" fontSize={10} domain={[0, 100]} />

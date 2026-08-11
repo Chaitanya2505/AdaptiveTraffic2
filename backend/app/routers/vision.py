@@ -11,6 +11,7 @@ from app.utils.dependencies import get_db, get_current_user
 from app.models.user import User
 from app.models.detection import Detection
 from app.services.vision_service import detector, VisionService
+from app.services.signal_service import SignalService
 from app.schemas.detection import VisionDetectResponse
 from app.utils.image_utils import decode_base64_image
 
@@ -124,26 +125,47 @@ async def detect_batch_vehicles(
     batch_results = detector.detect_batch(images, conf_threshold=0.5)
     latency_ms = round((time.time() - start_time) * 1000, 1)
 
-    # Save all batch detections to DB
+    # Save all batch detections to DB, mapping image index to lane (L1..L4)
     db_detections = []
-    for detections in batch_results:
+    # Also track queues to return in response
+    queue_lengths = {}
+    
+    for idx, detections in enumerate(batch_results):
+        # Image 0 -> L1, Image 1 -> L2, etc. (cap at L4 for safety if they upload more)
+        lane = f"L{min(idx + 1, 4)}" 
+        queue_lengths[lane] = {"vehicles": len(detections), "meters": len(detections) * 7.5}
+        
         for d in detections:
+            # We override the lane_id based on the image index
+            d["lane_id"] = lane
             det = Detection(
                 junction_id=junction_id,
                 vehicle_class=d["vehicle_class"],
                 confidence=d["confidence"],
                 bbox=d["bbox"],
-                lane_id="L1"
+                lane_id=lane
             )
             db_detections.append(det)
             
     db.add_all(db_detections)
     await db.commit()
+    
+    # Trigger Webster's signal optimization algorithm using these fresh batch detections
+    try:
+        optimized_signal = await SignalService.optimize(db, junction_id, mode="VISION")
+        signal_data = {
+            "phase": optimized_signal.phase,
+            "duration": optimized_signal.duration
+        }
+    except Exception as e:
+        signal_data = {"error": str(e)}
 
     return {
         "junction_id": junction_id,
         "batch_size": len(files),
-        "detections": batch_results,
+        "detections": batch_results, # List of lists of detections with updated lane_ids
+        "queue_lengths": queue_lengths,
+        "signal_optimization": signal_data,
         "inference_time_ms": latency_ms
     }
 

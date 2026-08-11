@@ -12,6 +12,15 @@ try:
 except ImportError:
     HAS_ULTRALYTICS = False
 
+try:
+    import easyocr
+    HAS_EASYOCR = True
+    # Initialize reader once, CPU mode for broad compatibility
+    reader = easyocr.Reader(['en'], gpu=False)
+except ImportError:
+    HAS_EASYOCR = False
+    reader = None
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.models.junction import Junction
@@ -58,8 +67,8 @@ class VehicleDetector:
         if self.is_mock:
             return self._mock_detect(image)
 
-        # Run inference via YOLOv11 (handles NMS and thresholding internally)
-        results = self.model(image, conf=conf_threshold, verbose=False)
+        # Run tracking via YOLOv11 (handles NMS and tracking internally)
+        results = self.model.track(image, conf=conf_threshold, persist=True, tracker="bytetrack.yaml", verbose=False)
         detections = []
         
         # COCO labels: 2=car, 5=bus, 7=truck, 3=motorcycle, 1=bicycle
@@ -77,6 +86,7 @@ class VehicleDetector:
                 cls_id = int(box.cls[0].item())
                 conf = float(box.conf[0].item())
                 xyxy = box.xyxy[0].tolist() # [x1, y1, x2, y2]
+                track_id = int(box.id[0].item()) if box.id is not None else None
                 
                 if cls_id in coco_mapping:
                     vehicle_class = coco_mapping[cls_id]
@@ -93,7 +103,8 @@ class VehicleDetector:
                     detections.append({
                         "vehicle_class": vehicle_class,
                         "confidence": round(conf, 2),
-                        "bbox": [round(coord, 1) for coord in xyxy]
+                        "bbox": [round(coord, 1) for coord in xyxy],
+                        "track_id": track_id
                     })
         return detections
 
@@ -171,7 +182,8 @@ class VehicleDetector:
             detections.append({
                 "vehicle_class": vehicle_class,
                 "confidence": conf,
-                "bbox": [round(x1, 1), round(y1, 1), round(x2, 1), round(y2, 1)]
+                "bbox": [round(x1, 1), round(y1, 1), round(x2, 1), round(y2, 1)],
+                "track_id": random.randint(1, 1000)
             })
         return detections
 
@@ -226,10 +238,25 @@ class VisionService:
             
             # Check for BRTS Violation
             if brts_lane and lane_id == brts_lane and d["vehicle_class"] != "bus":
-                region_code = random.randint(1, 38)
-                letters = f"{chr(random.randint(65, 90))}{chr(random.randint(65, 90))}"
-                number = random.randint(1000, 9999)
-                plate = f"GJ-{region_code:02d}-{letters}-{number}"
+                plate = None
+                # Attempt ALPR with EasyOCR if available
+                if HAS_EASYOCR and reader is not None:
+                    x1, y1, x2, y2 = [int(v) for v in d["bbox"]]
+                    # Crop vehicle region slightly expanded for plates
+                    crop = image[max(0, y1):min(h, y2), max(0, x1):min(w, x2)]
+                    if crop.size > 0:
+                        ocr_res = reader.readtext(crop)
+                        if ocr_res:
+                            best_text = max(ocr_res, key=lambda x: x[2])[1]
+                            # Clean string for typical plate
+                            plate = "".join(e for e in best_text if e.isalnum()).upper()
+                
+                # Mock fallback if OCR failed or not installed
+                if not plate or len(plate) < 4:
+                    region_code = random.randint(1, 38)
+                    letters = f"{chr(random.randint(65, 90))}{chr(random.randint(65, 90))}"
+                    number = random.randint(1000, 9999)
+                    plate = f"GJ-{region_code:02d}-{letters}-{number}"
                 
                 violation = Violation(
                     junction_id=junction_id,
@@ -244,12 +271,23 @@ class VisionService:
         db.add_all(violations_to_create)
         await db.commit()
 
-        # Calculate queue metrics per lane
+        # Calculate queue metrics per lane using perspective transform approximation
         queue_lengths = {}
         for lane in lanes:
             lane_dets = [d for d in detections_to_create if d.lane_id == lane]
             vehicle_count = len(lane_dets)
-            queue_meters = vehicle_count * 7.5 if vehicle_count > 0 else 0.0
+            
+            queue_meters = 0.0
+            if vehicle_count > 0:
+                # Find the furthest vehicle (minimum y coordinate for the bottom of the bbox)
+                # The smaller the y coordinate (higher in image), the further away it is.
+                # Assuming the bottom of the image (h) is the stopline = 0 meters.
+                furthest_y = min([d.bbox[3] for d in lane_dets])
+                pixel_dist = h - furthest_y
+                
+                # Quadratic mapping from pixels to meters to simulate perspective depth
+                queue_meters = max(0.0, 0.05 * pixel_dist + 0.0001 * (pixel_dist ** 2))
+                
             queue_lengths[lane] = {
                 "vehicles": vehicle_count,
                 "meters": round(queue_meters, 1)

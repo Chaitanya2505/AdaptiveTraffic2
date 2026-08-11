@@ -8,7 +8,7 @@ from app.models.detection import Detection
 
 class SignalService:
     @staticmethod
-    async def optimize(db: AsyncSession, junction_id: str, mode: str) -> Signal:
+    async def optimize(db: AsyncSession, junction_id: str, mode: str, lane_counts_override: dict = None) -> Signal:
         # Check if junction exists
         result = await db.execute(select(Junction).where(Junction.id == junction_id))
         junction = result.scalar_one_or_none()
@@ -26,28 +26,81 @@ class SignalService:
 
         # Count vehicles per lane
         lane_counts = {}
-        for d in recent_dets:
-            lane_counts[d.lane_id] = lane_counts.get(d.lane_id, 0) + 1
-
-        # Determine the green phase based on active traffic load
-        # For simplicity, compare odd lanes (e.g. L1, L3) vs even lanes (e.g. L2, L4)
-        odd_lane_count = sum(count for lane, count in lane_counts.items() if any(c in lane for c in ["1", "3", "5"]))
-        even_lane_count = sum(count for lane, count in lane_counts.items() if any(c in lane for c in ["2", "4", "6"]))
-
-        if odd_lane_count > even_lane_count:
-            phase = "NS_GREEN"
-            max_load = odd_lane_count
+        if lane_counts_override is not None:
+            lane_counts = lane_counts_override
         else:
-            phase = "EW_GREEN"
-            max_load = even_lane_count
+            for d in recent_dets:
+                lane_counts[d.lane_id] = lane_counts.get(d.lane_id, 0) + 1
 
-        # Webster-like dynamic duration: base of 30s + 5s per waiting vehicle, capped at 90s
-        duration = min(max(30 + max_load * 5, 30), 90)
+        # Query the most recent signal to determine the NEXT phase in the cycle
+        last_signal_result = await db.execute(
+            select(Signal)
+            .where(Signal.junction_id == junction_id)
+            .order_by(Signal.timestamp.desc())
+            .limit(1)
+        )
+        last_signal = last_signal_result.scalar_one_or_none()
+        
+        # 4-Phase Sequence: NORTH -> EAST -> SOUTH -> WEST
+        phase_sequence = ["NORTH_GREEN", "EAST_GREEN", "SOUTH_GREEN", "WEST_GREEN"]
+        
+        if last_signal and last_signal.phase in phase_sequence:
+            current_index = phase_sequence.index(last_signal.phase)
+            next_phase = phase_sequence[(current_index + 1) % 4]
+        else:
+            next_phase = "NORTH_GREEN" # Default start
 
-        # Fallback to random defaults if there are no vehicles active currently
-        if not recent_dets:
-            phase = random.choice(["NS_GREEN", "EW_GREEN", "NS_LEFT", "EW_LEFT"])
-            duration = random.randint(30, 60)
+        # Group lanes assuming L1=North, L2=East, L3=South, L4=West
+        # Based on 4 video lanes requirement
+        lane_mapping = {
+            "NORTH_GREEN": "L1",
+            "EAST_GREEN": "L2",
+            "SOUTH_GREEN": "L3",
+            "WEST_GREEN": "L4"
+        }
+
+        # Calculate Webster's Optimum Cycle Length
+        # Saturation flow (S) approx 1800 veh/hr/lane = 0.5 veh/sec
+        # We estimate hourly volume (V) by taking the 5-min count * 12
+        Y = 0.0
+        y_ratios = {}
+        
+        for p in phase_sequence:
+            lane = lane_mapping[p]
+            count = lane_counts.get(lane, 0)
+            
+            # V = hourly volume. (count in 5 mins * 12)
+            hourly_vol = count * 12
+            
+            # y = V / S. We cap y at 0.22 to ensure Y doesn't exceed 0.9 for stability
+            y = min(hourly_vol / 1800.0, 0.22)
+            y_ratios[p] = max(y, 0.05) # Minimum flow ratio to guarantee some green time
+            Y += y_ratios[p]
+
+        # Total lost time (L) for 4 phases (approx 5s lost per phase due to yellow/all-red clearance)
+        L = 4 * 5
+        
+        # C_opt = (1.5L + 5) / (1 - Y)
+        # Cap Y at 0.85 to avoid division by zero or infinite cycle lengths
+        Y_capped = min(Y, 0.85)
+        c_opt = (1.5 * L + 5) / (1 - Y_capped)
+        
+        # Bound the cycle length between 40s (min) and 180s (max)
+        c_opt = min(max(c_opt, 40), 180)
+
+        # Allocate green time for the NEXT phase proportionally
+        # G = (y / Y) * (C_opt - L)
+        y_next = y_ratios[next_phase]
+        green_time = (y_next / Y_capped) * (c_opt - L)
+        
+        # Bound the green time to practical limits (Min 10s, Max 60s)
+        duration = min(max(int(green_time), 10), 60)
+        
+        # Final override if there's absolutely no traffic detected
+        if not recent_dets and lane_counts_override is None:
+            duration = 15
+
+        phase = next_phase
 
         # Save the new signal timing plan
         optimized_signal = Signal(

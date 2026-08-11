@@ -5,6 +5,8 @@ import random
 import asyncio
 from typing import Set, Dict, Any
 from fastapi import WebSocket
+from app.services.signal_service import SignalService
+from app.database import AsyncSessionLocal
 
 # Setup SUMO paths
 if "SUMO_HOME" in os.environ:
@@ -388,6 +390,40 @@ class SumoService:
                     # 2. Advance SUMO simulation
                     traci.simulationStep()
                     
+                    # 2.5. Webster Adaptive Mode (if AUTO)
+                    if not self.is_manual_tl and self.traci_started:
+                        current_time = float(traci.simulation.getTime())
+                        if not hasattr(self, 'adaptive_tls_state'):
+                            self.adaptive_tls_state = {}
+                            
+                        for tls_id in traci.trafficlight.getIDList():
+                            if tls_id not in self.adaptive_tls_state:
+                                self.adaptive_tls_state[tls_id] = {'next_switch': current_time}
+                                
+                            if current_time >= self.adaptive_tls_state[tls_id]['next_switch']:
+                                try:
+                                    counts = {"L1": 0, "L2": 0, "L3": 0, "L4": 0}
+                                    for edge, lane in [("N2C", "L1"), ("E2C", "L2"), ("S2C", "L3"), ("W2C", "L4")]:
+                                        try:
+                                            counts[lane] = traci.edge.getLastStepVehicleNumber(edge)
+                                        except Exception:
+                                            pass
+                                            
+                                    async with AsyncSessionLocal() as db:
+                                        opt_signal = await SignalService.optimize(
+                                            db=db, junction_id="J-001", mode="SUMO", lane_counts_override=counts
+                                        )
+                                        
+                                    # Standard 4-way TraCI maps NS to phase 0, EW to phase 2
+                                    traci_idx = 0 if opt_signal.phase in ["NORTH_GREEN", "SOUTH_GREEN"] else 2
+                                    
+                                    traci.trafficlight.setPhase(tls_id, traci_idx)
+                                    traci.trafficlight.setPhaseDuration(tls_id, 999999)
+                                    self.adaptive_tls_state[tls_id]['next_switch'] = current_time + opt_signal.duration
+                                    
+                                except Exception as e:
+                                    print(f"Error in Webster adaptive logic: {e}")
+                    
                     # 3. Broadcast state to clients
                     if self.clients:
                         state = self.get_simulation_state()
@@ -481,10 +517,9 @@ class SumoService:
                     print("Traffic lights set to MANUAL mode.")
                 else:
                     self.is_manual_tl = False
-                    if self.traci_started:
-                        for tls_id in traci.trafficlight.getIDList():
-                            traci.trafficlight.setProgram(tls_id, "0")
-                    print("Traffic lights set to AUTO mode.")
+                    if hasattr(self, 'adaptive_tls_state'):
+                        self.adaptive_tls_state = {} # Force immediate recalculation
+                    print("Traffic lights set to AUTO (Webster Adaptive) mode.")
             elif msg_type == "set_tl_phase":
                 if self.is_manual_tl and self.traci_started:
                     tls_id = msg.get("tlsId")

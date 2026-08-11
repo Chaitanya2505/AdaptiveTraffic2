@@ -16,6 +16,7 @@ from app.routers import (
     auth_router,
     simulation_router
 )
+from app.routers.analytics import router as analytics_router
 
 async def seed_data():
     async with AsyncSessionLocal() as db:
@@ -112,6 +113,7 @@ app.include_router(vision_router)
 app.include_router(signals_router)
 app.include_router(violations_router)
 app.include_router(simulation_router)
+app.include_router(analytics_router)
 
 @app.get("/")
 async def root():
