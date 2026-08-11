@@ -14,7 +14,7 @@ import {
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/vision', label: 'Vision Sensing', icon: Eye },
-  { path: '/signals', label: 'Adaptive Signals', icon: TrafficCone },
+  { path: '/signals', label: 'Manual Signal Control', icon: TrafficCone },
   { path: '/violations', label: 'BRTS Violations', icon: AlertTriangle },
   { path: '/analytics', label: 'Analytics', icon: LineChart },
   { path: '/predictions', label: 'Predictions', icon: Sparkles },
