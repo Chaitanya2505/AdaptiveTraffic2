@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage.xml
+htmlcov/
+.coverage
+.coverage.*
+
+# FastAPI / backend
+backend/.env
+backend/.env.*
+backend/*.log
+backend/uploads/
+backend/temp/
+backend/.pytest_cache/
+
+# Node / frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/.env
+frontend/.env.*
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local data / outputs
+*.db
+*.sqlite3
+*.sqlite
+*.log
+*.tmp
+*.bak
+
+# Research / models artifacts
+research/models/*.pt
+research/models/*.pth
+research/models/*.onnx
+research/models/*.bin
+research/models/output/
+research/models/images/output/
+
+# SUMO / simulation artifacts
+backend/app/simulation/*.xml~
+backend/app/simulation/*.log
+backend/app/simulation/*.out
+
+# Misc
+.cache/

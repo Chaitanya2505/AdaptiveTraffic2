@@ -1,0 +1,22 @@
+<routes>
+    <vType id="car" vClass="passenger" length="5.0" minGap="2.5" maxSpeed="13.89" accel="2.6" decel="4.5" sigma="0.5" color="0,255,255"/>
+    <vType id="truck" vClass="truck" length="10.0" minGap="3.0" maxSpeed="8.0" accel="1.2" decel="3.5" sigma="0.5" color="255,255,0"/>
+    <vType id="bus" vClass="bus" length="12.0" minGap="3.0" maxSpeed="10.0" accel="1.5" decel="4.0" sigma="0.5" color="255,165,0"/>
+
+    <!-- Routes -->
+    <route id="r_N2S" edges="N2C C2S"/>
+    <route id="r_N2E" edges="N2C C2E"/>
+    <route id="r_N2W" edges="N2C C2W"/>
+
+    <route id="r_S2N" edges="S2C C2N"/>
+    <route id="r_S2E" edges="S2C C2E"/>
+    <route id="r_S2W" edges="S2C C2W"/>
+
+    <route id="r_E2W" edges="E2C C2W"/>
+    <route id="r_E2N" edges="E2C C2N"/>
+    <route id="r_E2S" edges="E2C C2S"/>
+
+    <route id="r_W2E" edges="W2C C2E"/>
+    <route id="r_W2N" edges="W2C C2N"/>
+    <route id="r_W2S" edges="W2C C2S"/>
+</routes>

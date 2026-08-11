@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom rules for Leaflet map styling in Dark Mode */
+.leaflet-container {
+  background-color: #0f172a !important; /* slate-900 */
+  border: 1px solid #334155; /* slate-700 */
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: #1e293b !important; /* slate-800 */
+  color: #f8fafc !important; /* slate-50 */
+  border: 1px solid #475569;
+}
+
+/* Custom dark scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a; /* slate-900 */
+}
+::-webkit-scrollbar-thumb {
+  background: #334155; /* slate-700 */
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569; /* slate-600 */
+}
+
+/* Custom styles for charts or overlays */
+.glassmorphism {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
