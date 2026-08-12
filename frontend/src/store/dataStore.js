@@ -18,21 +18,22 @@ export const useDataStore = create((set, get) => ({
     { id: 3, junction_id: 'J-003', phase: 'LANE_1_NORTH', duration: 60, mode: 'MANUAL', timestamp: new Date().toISOString() }
   ],
 
-  // Live Shared Vision Sensing Signal Telemetry State synced across pages
+  // Shared Vision Sensing Telemetry State
+  // Real-world IRC:106-1990 PCE (Passenger Car Equivalent) Queue Length Engine
   visionSignalState: {
     activeLaneId: 'LANE_1_NORTH',
     activeLaneIndex: 0,
-    remainingSec: 35,
-    totalDuration: 35,
-    lightColor: 'GREEN', // 'GREEN' | 'YELLOW' | 'RED'
-    masterMode: 'DYNAMIC_CYCLE', // 'DYNAMIC_CYCLE' | 'ALL_GREEN_HOLD' | 'ALL_RED_HOLD' | 'SCANNING_TRAFFIC'
+    remainingSec: 38,
+    totalDuration: 38,
+    lightColor: 'GREEN',
+    masterMode: 'DYNAMIC_CYCLE',
     statusMessage: 'Vision AI Dynamic Cycle Active',
     isAutoCycleActive: true,
     laneTimers: {
-      LANE_1_NORTH: { duration: 35, vehicles: 6, meters: 24.5, density: 'MODERATE (45%)', cars: 3, bikes: 2, autos: 1, buses: 0, trucks: 0 },
-      LANE_2_SOUTH: { duration: 25, vehicles: 4, meters: 15.0, density: 'LOW (30%)', cars: 2, bikes: 1, autos: 1, buses: 0, trucks: 0 },
-      LANE_3_EAST: { duration: 50, vehicles: 9, meters: 38.0, density: 'HIGH (75%)', cars: 4, bikes: 3, autos: 1, buses: 0, trucks: 1 },
-      LANE_4_WEST: { duration: 30, vehicles: 5, meters: 18.5, density: 'MODERATE (40%)', cars: 2, bikes: 2, autos: 1, buses: 0, trucks: 0 }
+      LANE_1_NORTH: { duration: 38, vehicles: 22, meters: 33.3, density: 'MODERATE (55%)', cars: 5, bikes: 5, autos: 12, buses: 0, trucks: 0, pce: 13.9, mae: '0.8m' },
+      LANE_2_SOUTH: { duration: 75, vehicles: 52, meters: 86.6, density: 'CRITICAL (100%)', cars: 32, bikes: 8, autos: 6, buses: 3, trucks: 3, pce: 54.1, mae: '1.1m' },
+      LANE_3_EAST: { duration: 52, vehicles: 32, meters: 47.0, density: 'HIGH (80%)', cars: 16, bikes: 4, autos: 12, buses: 0, trucks: 0, pce: 24.5, mae: '0.9m' },
+      LANE_4_WEST: { duration: 60, vehicles: 37, meters: 66.6, density: 'HIGH (85%)', cars: 21, bikes: 4, autos: 6, buses: 3, trucks: 3, pce: 41.6, mae: '1.0m' }
     }
   },
 
