@@ -128,7 +128,7 @@ class VehicleDetector:
         if self.is_mock or self.model is None:
             return self._mock_detect(image)
 
-        results = self.model.track(image, conf=conf_threshold, persist=True, tracker="bytetrack.yaml", verbose=False)
+        results = self.model.track(image, conf=conf_threshold, imgsz=640, persist=True, tracker="bytetrack.yaml", verbose=False)
         detections = []
         
         if results and len(results) > 0:
@@ -275,7 +275,7 @@ class VehicleDetector:
         if self.is_mock or self.model is None:
             return [self._mock_detect(img) for img in images]
 
-        results = self.model(images, conf=conf_threshold, verbose=False)
+        results = self.model(images, conf=conf_threshold, imgsz=640, verbose=False)
         batch_detections = []
         
         for result in results:

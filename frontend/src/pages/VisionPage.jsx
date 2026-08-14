@@ -48,6 +48,7 @@ export default function VisionPage() {
 
   const [isAnalyzed, setIsAnalyzed] = useState(false);
   const [detectionResult, setDetectionResult] = useState(null);
+  const [inferenceMetadata, setInferenceMetadata] = useState(null);
   const { loading, request } = useApi();
 
   const handleLaneFileChange = (idx, file) => {
@@ -86,6 +87,7 @@ export default function VisionPage() {
       3: { file: null, preview: null, raw: null, type: null, isCustomUpload: false }
     });
     setDetectionResult(null);
+    setInferenceMetadata(null);
     setVisionSignalState((prev) => ({ ...prev, isAutoCycleActive: false }));
     setIsAnalyzed(false);
   };
@@ -100,33 +102,62 @@ export default function VisionPage() {
     setLaneFeeds(currentFeeds);
     setIsAnalyzed(true);
 
-    // Try backend API detection first if custom files are present
+    // Try backend API detection with UVH-26 model for custom files
     const hasCustomFiles = Object.values(currentFeeds).some((f) => f.file !== null);
     if (hasCustomFiles) {
       try {
+        console.log("[VisionPage] Starting UVH-26 vehicle detection...");
+        
         const formData = new FormData();
+        let fileCount = 0;
         Object.entries(currentFeeds).forEach(([idx, feed]) => {
           if (feed.file) {
+            console.log(`[VisionPage] Adding Lane ${parseInt(idx) + 1} file: ${feed.file.name} (${(feed.file.size / 1024).toFixed(2)}KB)`);
             formData.append('files', feed.file);
+            fileCount++;
           }
         });
         formData.append('junction_id', selectedJunction);
 
+        console.log(`[VisionPage] FormData prepared: ${fileCount} files + junction_id=${selectedJunction}`);
+        console.log(`[VisionPage] Sending POST request to /vision/detect-batch...`);
+        
+        // Call API without explicit Content-Type header - axios/FormData will set it correctly
         const data = await request('post', '/vision/detect-batch', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
+          headers: { 'Content-Type': undefined }
         });
 
         if (data && data.queue_lengths) {
+          console.log("[VisionPage] ✅ UVH-26 Detection successful!", data);
+          console.log("[VisionPage] Queue lengths:", data.queue_lengths);
+          console.log("[VisionPage] Inference time:", data.inference_time_ms, "ms");
+          
           setDetectionResult(data);
+          setInferenceMetadata({
+            model: 'UVH-26 (YOLOv11-S)',
+            inferenceTime: data.inference_time_ms,
+            batchSize: data.batch_size,
+            source: 'Backend API Detection'
+          });
           updateStoreFromBackendData(data);
           return;
+        } else {
+          console.warn("[VisionPage] Invalid response format from backend:", data);
         }
       } catch (err) {
-        console.log("Backend API offline or endpoint unavailable. Running dynamic feature detection engine for custom uploaded media.");
+        console.error("[VisionPage] ❌ Backend API error:", {
+          status: err.response?.status,
+          statusText: err.response?.statusText,
+          detail: err.response?.data?.detail,
+          message: err.message,
+          fullError: err
+        });
+        console.log("[VisionPage] Falling back to dynamic feature detection...");
       }
     }
 
-    // Dynamic feature analysis for custom uploaded files / sample feeds
+    // Fallback: Dynamic feature analysis for sample feeds
+    console.log("[VisionPage] Running fallback dynamic detection analysis...");
     runDynamicDetectionAnalysis(currentFeeds);
   };
 
@@ -188,16 +219,6 @@ export default function VisionPage() {
     };
   };
 
-  const distributeVehicles = (total) => {
-    if (!total) return { cars: 0, bikes: 0, autos: 0, buses: 0, trucks: 0 };
-    const cars = Math.floor(total * 0.45);
-    const bikes = Math.floor(total * 0.35);
-    const autos = Math.floor(total * 0.15);
-    const buses = Math.floor(total * 0.03);
-    const trucks = total - (cars + bikes + autos + buses);
-    return { cars, bikes, autos, buses, trucks };
-  };
-
   const round1 = (val) => Math.round(val * 10) / 10;
 
   const runDynamicDetectionAnalysis = (activeFeeds = laneFeeds) => {
@@ -220,6 +241,11 @@ export default function VisionPage() {
     };
 
     setDetectionResult(mockResult);
+    setInferenceMetadata({
+      model: 'Fallback Dynamic Analysis',
+      source: 'Frontend Mock Detection',
+      note: 'Backend unavailable - using deterministic hash-based analysis'
+    });
 
     setVisionSignalState((prev) => {
       const l1Duration = Math.max(20, Math.round(queues.L1.vehicles * 1.2 + 10));
@@ -265,10 +291,10 @@ export default function VisionPage() {
         totalDuration: l1Duration,
         lightColor: 'GREEN',
         laneTimers: {
-          LANE_1_NORTH: q1 ? { duration: l1Duration, ...distributeVehicles(q1.vehicles), ...q1, density: getDensityLabel(q1.vehicles) } : prev.laneTimers?.LANE_1_NORTH,
-          LANE_2_SOUTH: q2 ? { duration: Math.max(20, Math.round(q2.vehicles * 1.2 + 10)), ...distributeVehicles(q2.vehicles), ...q2, density: getDensityLabel(q2.vehicles) } : prev.laneTimers?.LANE_2_SOUTH,
-          LANE_3_EAST: q3 ? { duration: Math.max(20, Math.round(q3.vehicles * 1.2 + 10)), ...distributeVehicles(q3.vehicles), ...q3, density: getDensityLabel(q3.vehicles) } : prev.laneTimers?.LANE_3_EAST,
-          LANE_4_WEST: q4 ? { duration: Math.max(20, Math.round(q4.vehicles * 1.2 + 10)), ...distributeVehicles(q4.vehicles), ...q4, density: getDensityLabel(q4.vehicles) } : prev.laneTimers?.LANE_4_WEST
+          LANE_1_NORTH: q1 ? { duration: l1Duration, ...q1, density: getDensityLabel(q1.vehicles) } : prev.laneTimers?.LANE_1_NORTH,
+          LANE_2_SOUTH: q2 ? { duration: Math.max(20, Math.round(q2.vehicles * 1.2 + 10)), ...q2, density: getDensityLabel(q2.vehicles) } : prev.laneTimers?.LANE_2_SOUTH,
+          LANE_3_EAST: q3 ? { duration: Math.max(20, Math.round(q3.vehicles * 1.2 + 10)), ...q3, density: getDensityLabel(q3.vehicles) } : prev.laneTimers?.LANE_3_EAST,
+          LANE_4_WEST: q4 ? { duration: Math.max(20, Math.round(q4.vehicles * 1.2 + 10)), ...q4, density: getDensityLabel(q4.vehicles) } : prev.laneTimers?.LANE_4_WEST
         }
       };
     });
@@ -347,57 +373,6 @@ export default function VisionPage() {
         </div>
       </div>
 
-      {/* IRC:106 PCE Queue Estimation Standard Card */}
-      <Card title="IRC:106 Multi-Lane Spatial Queue Estimation Standard" subtitle="Vehicle-class spatial occupancy factors & multi-lane parallel packing formula">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
-          <div className="bg-slate-900 p-3 rounded-lg border border-slate-800 space-y-1">
-            <div className="flex items-center gap-1.5 text-slate-400 font-semibold">
-              <span>🚗 Car / SUV</span>
-            </div>
-            <p className="text-white font-extrabold text-sm font-mono">1.00 PCE <span className="text-[10px] text-slate-400">(4.8m)</span></p>
-          </div>
-
-          <div className="bg-slate-900 p-3 rounded-lg border border-slate-800 space-y-1">
-            <div className="flex items-center gap-1.5 text-slate-400 font-semibold">
-              <span>🏍 2-Wheeler</span>
-            </div>
-            <p className="text-white font-extrabold text-sm font-mono">0.35 PCE <span className="text-[10px] text-slate-400">(1.8m)</span></p>
-          </div>
-
-          <div className="bg-slate-900 p-3 rounded-lg border border-slate-800 space-y-1">
-            <div className="flex items-center gap-1.5 text-slate-400 font-semibold">
-              <span>🛺 Auto-Rickshaw</span>
-            </div>
-            <p className="text-white font-extrabold text-sm font-mono">0.60 PCE <span className="text-[10px] text-slate-400">(2.8m)</span></p>
-          </div>
-
-          <div className="bg-slate-900 p-3 rounded-lg border border-slate-800 space-y-1">
-            <div className="flex items-center gap-1.5 text-slate-400 font-semibold">
-              <span>🚌 Transit Bus</span>
-            </div>
-            <p className="text-white font-extrabold text-sm font-mono">2.50 PCE <span className="text-[10px] text-slate-400">(11.5m)</span></p>
-          </div>
-
-          <div className="bg-slate-900 p-3 rounded-lg border border-slate-800 space-y-1">
-            <div className="flex items-center gap-1.5 text-slate-400 font-semibold">
-              <span>🚚 Heavy Truck</span>
-            </div>
-            <p className="text-white font-extrabold text-sm font-mono">3.00 PCE <span className="text-[10px] text-slate-400">(13.5m)</span></p>
-          </div>
-        </div>
-
-        <div className="mt-3 p-3 bg-slate-950 border border-slate-850 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <Ruler className="h-4 w-4 text-cyan-400 shrink-0" />
-            <span className="text-slate-300 font-mono">
-              Queue Formula: <strong>Queue Length (m) = Σ (Class_Count × PCE_Len) / Effective_Lanes</strong>
-            </span>
-          </div>
-          <Badge variant="success" className="text-xs font-mono">
-            Queue MAE Accuracy: 0.95m (&lt; 1.2m Target Guaranteed)
-          </Badge>
-        </div>
-      </Card>
 
       {/* 4 Approach Lane CCTV Stream Cards */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -538,7 +513,11 @@ export default function VisionPage() {
       {/* Comprehensive 4-Lane Telemetry & Vehicle Classification Breakdown Table */}
       <Card 
         title="IISc UVH-26 Fine-Tuned 4-Lane Telemetry Breakdown" 
-        subtitle="IRC:106-1990 PCE Queue Length calculations with vehicle class occupancy factors and spatial queue MAE accuracy"
+        subtitle={
+          inferenceMetadata
+            ? `${inferenceMetadata.source} • ${inferenceMetadata.model}${inferenceMetadata.inferenceTime ? ` • ${inferenceMetadata.inferenceTime}ms inference` : ''}${inferenceMetadata.note ? ' • ' + inferenceMetadata.note : ''}`
+            : "IRC:106-1990 PCE Queue Length calculations with vehicle class occupancy factors and spatial queue MAE accuracy"
+        }
         action={<Activity className="h-5 w-5 text-emerald-400" />}
       >
         <div className="overflow-x-auto">
@@ -578,12 +557,7 @@ export default function VisionPage() {
                 let trucks = qData.trucks;
 
                 if (cars === undefined) {
-                  const dist = distributeVehicles(totalCount);
-                  cars = dist.cars;
-                  bikes = dist.bikes;
-                  autos = dist.autos;
-                  buses = dist.buses;
-                  trucks = dist.trucks;
+                  cars = 0; bikes = 0; autos = 0; buses = 0; trucks = 0;
                 }
 
                 const queueMeters = qData.meters;

@@ -49,6 +49,31 @@ async def get_current_user(
         raise credentials_exception
     return user
 
+async def get_current_user_optional(
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db)
+) -> User:
+    """
+    Optional authentication - returns None if token is missing or invalid.
+    Useful for development/demo endpoints that can work without auth.
+    """
+    if not token:
+        return None
+        
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        username: str = payload.get("sub")
+        role: str = payload.get("role")
+        if username is None:
+            return None
+        token_data = TokenData(username=username, role=role)
+    except JWTError:
+        return None
+        
+    result = await db.execute(select(User).where(User.username == token_data.username))
+    user = result.scalar_one_or_none()
+    return user
+
 class RoleChecker:
     def __init__(self, allowed_roles: List[str]):
         self.allowed_roles = allowed_roles
