@@ -187,3 +187,39 @@ async def track_vehicles(
     """
     result = await VisionService.track_vehicles(db, junction_id, {})
     return result
+
+@router.post("/detect-brt-intrusion")
+async def detect_brt_intrusion(
+    request: Request,
+    file: Optional[UploadFile] = File(None),
+    image_base64: Optional[str] = Form(None),
+    roi_json: Optional[str] = Form(None),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Analyzes frame for BRT lane intrusions using UVH-26 and polygon containment test.
+    """
+    img = None
+    if file:
+        contents = await file.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    elif image_base64:
+        try:
+            img = decode_base64_image(image_base64)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    
+    if img is None:
+        raise HTTPException(status_code=400, detail="No valid image payload provided")
+
+    import json
+    roi_points = None
+    if roi_json:
+        try:
+            roi_points = json.loads(roi_json)
+        except Exception:
+            pass
+
+    return detector.detect_brt_intrusion(img, roi_points=roi_points)
+

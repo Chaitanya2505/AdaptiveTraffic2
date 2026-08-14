@@ -1,8 +1,9 @@
 import random
 import os
 import time
+import base64
 from datetime import datetime, timezone
-from typing import List, Dict
+from typing import List, Dict, Optional
 import numpy as np
 import cv2
 
@@ -90,9 +91,17 @@ class VehicleDetector:
             try:
                 os.makedirs("ml_models/uvh26", exist_ok=True)
                 local_path = os.path.join("ml_models", "uvh26", "UVH-26-MV-YOLOv11-S.pt")
+                workspace_weights = os.path.abspath(os.path.join(
+                    os.path.dirname(__file__), "..", "..", "..", "UVH26_Project", "weights", "YOLOv11-S", "UVH-26-MV-YOLOv11-S.pt"
+                ))
                 
                 # Check for UVH-26 weights locally
-                if os.path.exists(local_path):
+                if os.path.exists(workspace_weights):
+                    self.model = YOLO(workspace_weights)
+                    self.is_mock = False
+                    self.model_type = "IISc UVH-26 (YOLOv11-S Indian Traffic Model)"
+                    print(f"[VISION SERVICE] Loaded UVH-26 model from workspace path: {workspace_weights}")
+                elif os.path.exists(local_path):
                     self.model = YOLO(local_path)
                     self.is_mock = False
                     self.model_type = "IISc UVH-26 (YOLOv11-S Indian Traffic Model)"
@@ -143,11 +152,124 @@ class VehicleDetector:
                 
                 detections.append({
                     "vehicle_class": vehicle_class,
+                    "raw_label": raw_label,
                     "confidence": round(conf, 2),
                     "bbox": [round(coord, 1) for coord in xyxy],
                     "track_id": track_id
                 })
         return detections
+
+    def detect_brt_intrusion(self, image: np.ndarray, roi_points: List[List[float]], conf_threshold: float = 0.35) -> dict:
+        """
+        Runs UVH-26 detection on frame and tests whether non-bus vehicles fall inside the specified BRT ROI polygon.
+        Renders annotated image frame with ROI polygon, Green Bus boxes, Red Intrusion boxes, and telemetry HUD.
+        """
+        h, w = image.shape[:2]
+        
+        # 1. Format ROI Polygon
+        if not roi_points or len(roi_points) < 3:
+            # Default polygon covering center-left BRT lane
+            roi_points = [
+                [int(w * 0.1), int(h * 0.4)],
+                [int(w * 0.45), int(h * 0.4)],
+                [int(w * 0.55), int(h * 0.95)],
+                [int(w * 0.05), int(h * 0.95)]
+            ]
+        
+        roi_polygon = np.array(roi_points, dtype=np.int32)
+        
+        # 2. Perform Detection
+        detections = self.detect(image, conf_threshold=conf_threshold)
+        
+        annotated = image.copy()
+        
+        # 3. Draw Translucent BRT Lane ROI Polygon
+        roi_overlay = annotated.copy()
+        cv2.fillPoly(roi_overlay, [roi_polygon], (0, 165, 255))  # Orange fill
+        cv2.addWeighted(roi_overlay, 0.25, annotated, 0.75, 0, annotated)
+        cv2.polylines(annotated, [roi_polygon], isClosed=True, color=(0, 215, 255), thickness=3)
+        
+        top_pt = roi_polygon[np.argmin(roi_polygon[:, 1])]
+        cv2.putText(annotated, "BRT LANE - BUSES ONLY", (top_pt[0] + 5, max(30, top_pt[1] - 10)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 215, 255), 2)
+        
+        active_intrusions = 0
+        active_buses = 0
+        processed_detections = []
+        
+        for d in detections:
+            x1, y1, x2, y2 = [int(v) for v in d["bbox"]]
+            v_class = d["vehicle_class"]
+            raw_class = d.get("raw_label", v_class)
+            conf = d["confidence"]
+            track_id = d.get("track_id")
+            
+            # Bottom center point (tire-road contact)
+            check_pt = (int((x1 + x2) / 2), int(y2))
+            inside_roi = cv2.pointPolygonTest(roi_polygon, (float(check_pt[0]), float(check_pt[1])), False) >= 0
+            
+            if inside_roi:
+                if v_class == "bus" or raw_class in ["Bus", "Mini-bus"]:
+                    status = "AUTHORIZED_BUS"
+                    active_buses += 1
+                    color = (0, 255, 0)
+                    status_text = f"BUS [BRT] {conf:.2f}"
+                else:
+                    status = "BRT_INTRUSION"
+                    active_intrusions += 1
+                    color = (0, 0, 255)
+                    status_text = f"INTRUSION: {v_class.upper()} {conf:.2f}"
+            else:
+                status = "NORMAL_TRAFFIC"
+                color = (255, 200, 0)
+                status_text = f"{v_class} {conf:.2f}"
+                
+            if track_id:
+                status_text = f"#{track_id} {status_text}"
+                
+            d_info = {
+                **d,
+                "status": status,
+                "inside_brt": inside_roi,
+                "check_point": list(check_pt)
+            }
+            processed_detections.append(d_info)
+            
+            # Draw Bounding Box & Badge
+            box_thick = 3 if status == "BRT_INTRUSION" else 2
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), color, box_thick)
+            cv2.circle(annotated, check_pt, 4, color, -1)
+            
+            (tw, th), tb = cv2.getTextSize(status_text, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 2)
+            cv2.rectangle(annotated, (x1, max(0, y1 - th - tb - 6)), (x1 + tw + 8, y1), color, -1)
+            text_color = (255, 255, 255) if status == "BRT_INTRUSION" else (0, 0, 0)
+            cv2.putText(annotated, status_text, (x1 + 4, y1 - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.55, text_color, 2)
+
+        # Draw HUD Telemetry Banner
+        cv2.rectangle(annotated, (0, 0), (w, 45), (20, 20, 20), -1)
+        hud_str = f"BRTS CORRIDOR GUARD | Active Intrusions: {active_intrusions} | Buses: {active_buses} | Model: UVH-26"
+        cv2.putText(annotated, hud_str, (15, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        
+        if active_intrusions > 0:
+            alert_str = f"🚨 BRT LANE INTRUSION ({active_intrusions}) 🚨"
+            (tw, th), tb = cv2.getTextSize(alert_str, cv2.FONT_HERSHEY_SIMPLEX, 0.65, 2)
+            alert_x = w - tw - 15
+            cv2.rectangle(annotated, (alert_x - 8, 6), (w - 10, 38), (0, 0, 220), -1)
+            cv2.putText(annotated, alert_str, (alert_x, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
+
+        # Encode frame to base64 for frontend consumption
+        _, buffer = cv2.imencode(".jpg", annotated)
+        base64_frame = base64.b64encode(buffer).decode("utf-8")
+
+        return {
+            "model": self.model_type,
+            "active_intrusions": active_intrusions,
+            "active_buses": active_buses,
+            "total_vehicles": len(detections),
+            "detections": processed_detections,
+            "roi_polygon": roi_points,
+            "annotated_frame_base64": f"data:image/jpeg;base64,{base64_frame}"
+        }
 
     def detect_batch(self, images: List[np.ndarray], conf_threshold: float = 0.35) -> List[List[dict]]:
         if self.is_mock or self.model is None:

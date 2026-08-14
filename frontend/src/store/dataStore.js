@@ -28,7 +28,7 @@ export const useDataStore = create((set, get) => ({
     lightColor: 'GREEN',
     masterMode: 'DYNAMIC_CYCLE',
     statusMessage: 'Vision AI Dynamic Cycle Active',
-    isAutoCycleActive: true,
+    isAutoCycleActive: false,
     laneTimers: {
       LANE_1_NORTH: { duration: 38, vehicles: 22, meters: 33.3, density: 'MODERATE (55%)', cars: 5, bikes: 5, autos: 12, buses: 0, trucks: 0, pce: 13.9, mae: '0.8m' },
       LANE_2_SOUTH: { duration: 75, vehicles: 52, meters: 86.6, density: 'CRITICAL (100%)', cars: 32, bikes: 8, autos: 6, buses: 3, trucks: 3, pce: 54.1, mae: '1.1m' },

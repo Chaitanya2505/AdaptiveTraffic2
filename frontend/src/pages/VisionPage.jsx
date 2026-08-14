@@ -38,22 +38,17 @@ export default function VisionPage() {
 
   const [selectedJunction, setSelectedJunction] = useState('J-001');
 
-  // Feeds state initialized with default samples
+  // Feeds state initialized dynamically (empty dropzone until feeds are loaded or uploaded)
   const [laneFeeds, setLaneFeeds] = useState({
-    0: { file: null, preview: '/sample_cctv/uvh26_detected_lane1.jpg', raw: '/sample_cctv/raw_lane1.jpg', type: 'image', isCustomUpload: false },
-    1: { file: null, preview: '/sample_cctv/uvh26_detected_lane2.jpg', raw: '/sample_cctv/raw_lane2.jpg', type: 'image', isCustomUpload: false },
-    2: { file: null, preview: '/sample_cctv/uvh26_detected_lane3.jpg', raw: '/sample_cctv/raw_lane3.jpg', type: 'image', isCustomUpload: false },
-    3: { file: null, preview: '/sample_cctv/uvh26_detected_lane4.jpg', raw: '/sample_cctv/raw_lane4.jpg', type: 'image', isCustomUpload: false }
+    0: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
+    1: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
+    2: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
+    3: { file: null, preview: null, raw: null, type: null, isCustomUpload: false }
   });
 
-  const [isAnalyzed, setIsAnalyzed] = useState(true);
+  const [isAnalyzed, setIsAnalyzed] = useState(false);
   const [detectionResult, setDetectionResult] = useState(null);
   const { loading, request } = useApi();
-
-  // Initial load simulation
-  useEffect(() => {
-    runDynamicDetectionAnalysis(laneFeeds);
-  }, []);
 
   const handleLaneFileChange = (idx, file) => {
     if (!file) return;
@@ -70,6 +65,7 @@ export default function VisionPage() {
         isCustomUpload: true
       }
     }));
+    setVisionSignalState((prev) => ({ ...prev, isAutoCycleActive: false }));
     setIsAnalyzed(false);
   };
 
@@ -78,6 +74,7 @@ export default function VisionPage() {
       ...prev,
       [idx]: { file: null, preview: null, raw: null, type: null, isCustomUpload: false }
     }));
+    setVisionSignalState((prev) => ({ ...prev, isAutoCycleActive: false }));
     setIsAnalyzed(false);
   };
 
@@ -89,17 +86,7 @@ export default function VisionPage() {
       3: { file: null, preview: null, raw: null, type: null, isCustomUpload: false }
     });
     setDetectionResult(null);
-    setIsAnalyzed(false);
-  };
-
-  const handleLoadSampleCCTVFeeds = () => {
-    const updatedSamples = {
-      0: { file: null, preview: '/sample_cctv/raw_lane1.jpg', raw: '/sample_cctv/raw_lane1.jpg', type: 'image', isCustomUpload: false },
-      1: { file: null, preview: '/sample_cctv/raw_lane2.jpg', raw: '/sample_cctv/raw_lane2.jpg', type: 'image', isCustomUpload: false },
-      2: { file: null, preview: '/sample_cctv/raw_lane3.jpg', raw: '/sample_cctv/raw_lane3.jpg', type: 'image', isCustomUpload: false },
-      3: { file: null, preview: '/sample_cctv/raw_lane4.jpg', raw: '/sample_cctv/raw_lane4.jpg', type: 'image', isCustomUpload: false }
-    };
-    setLaneFeeds(updatedSamples);
+    setVisionSignalState((prev) => ({ ...prev, isAutoCycleActive: false }));
     setIsAnalyzed(false);
   };
 
@@ -109,17 +96,7 @@ export default function VisionPage() {
     if (e) e.preventDefault();
     if (!hasAnyFeed) return;
 
-    // Update previews for default sample feeds while keeping user uploads intact
     const currentFeeds = { ...laneFeeds };
-    [0, 1, 2, 3].forEach((idx) => {
-      if (!currentFeeds[idx]?.isCustomUpload && currentFeeds[idx]?.preview) {
-        currentFeeds[idx] = {
-          ...currentFeeds[idx],
-          preview: `/sample_cctv/uvh26_detected_lane${idx + 1}.jpg`
-        };
-      }
-    });
-
     setLaneFeeds(currentFeeds);
     setIsAnalyzed(true);
 
@@ -211,6 +188,16 @@ export default function VisionPage() {
     };
   };
 
+  const distributeVehicles = (total) => {
+    if (!total) return { cars: 0, bikes: 0, autos: 0, buses: 0, trucks: 0 };
+    const cars = Math.floor(total * 0.45);
+    const bikes = Math.floor(total * 0.35);
+    const autos = Math.floor(total * 0.15);
+    const buses = Math.floor(total * 0.03);
+    const trucks = total - (cars + bikes + autos + buses);
+    return { cars, bikes, autos, buses, trucks };
+  };
+
   const round1 = (val) => Math.round(val * 10) / 10;
 
   const runDynamicDetectionAnalysis = (activeFeeds = laneFeeds) => {
@@ -234,32 +221,57 @@ export default function VisionPage() {
 
     setDetectionResult(mockResult);
 
-    setVisionSignalState((prev) => ({
-      ...prev,
-      laneTimers: {
-        LANE_1_NORTH: { duration: Math.max(20, Math.round(queues.L1.vehicles * 1.2 + 10)), ...queues.L1, density: getDensityLabel(queues.L1.vehicles) },
-        LANE_2_SOUTH: { duration: Math.max(20, Math.round(queues.L2.vehicles * 1.2 + 10)), ...queues.L2, density: getDensityLabel(queues.L2.vehicles) },
-        LANE_3_EAST: { duration: Math.max(20, Math.round(queues.L3.vehicles * 1.2 + 10)), ...queues.L3, density: getDensityLabel(queues.L3.vehicles) },
-        LANE_4_WEST: { duration: Math.max(20, Math.round(queues.L4.vehicles * 1.2 + 10)), ...queues.L4, density: getDensityLabel(queues.L4.vehicles) }
-      }
-    }));
+    setVisionSignalState((prev) => {
+      const l1Duration = Math.max(20, Math.round(queues.L1.vehicles * 1.2 + 10));
+      const l2Duration = Math.max(20, Math.round(queues.L2.vehicles * 1.2 + 10));
+      const l3Duration = Math.max(20, Math.round(queues.L3.vehicles * 1.2 + 10));
+      const l4Duration = Math.max(20, Math.round(queues.L4.vehicles * 1.2 + 10));
+      
+      return {
+        ...prev,
+        isAutoCycleActive: true,
+        masterMode: 'DYNAMIC_CYCLE',
+        activeLaneId: 'LANE_1_NORTH',
+        activeLaneIndex: 0,
+        remainingSec: l1Duration,
+        totalDuration: l1Duration,
+        lightColor: 'GREEN',
+        laneTimers: {
+          LANE_1_NORTH: { duration: l1Duration, ...queues.L1, density: getDensityLabel(queues.L1.vehicles) },
+          LANE_2_SOUTH: { duration: l2Duration, ...queues.L2, density: getDensityLabel(queues.L2.vehicles) },
+          LANE_3_EAST: { duration: l3Duration, ...queues.L3, density: getDensityLabel(queues.L3.vehicles) },
+          LANE_4_WEST: { duration: l4Duration, ...queues.L4, density: getDensityLabel(queues.L4.vehicles) }
+        }
+      };
+    });
   };
 
   const updateStoreFromBackendData = (data) => {
-    const q1 = data.queue_lengths?.L1 || { vehicles: 22, meters: 33.3, cars: 5, bikes: 5, autos: 12, buses: 0, trucks: 0, pce: 13.9, mae: '0.8m' };
-    const q2 = data.queue_lengths?.L2 || { vehicles: 52, meters: 86.6, cars: 32, bikes: 8, autos: 6, buses: 3, trucks: 3, pce: 54.1, mae: '1.1m' };
-    const q3 = data.queue_lengths?.L3 || { vehicles: 32, meters: 47.0, cars: 16, bikes: 4, autos: 12, buses: 0, trucks: 0, pce: 24.5, mae: '0.9m' };
-    const q4 = data.queue_lengths?.L4 || { vehicles: 37, meters: 66.6, cars: 21, bikes: 4, autos: 6, buses: 3, trucks: 3, pce: 41.6, mae: '1.0m' };
+    const q1 = data.queue_lengths?.L1;
+    const q2 = data.queue_lengths?.L2;
+    const q3 = data.queue_lengths?.L3;
+    const q4 = data.queue_lengths?.L4;
 
-    setVisionSignalState((prev) => ({
-      ...prev,
-      laneTimers: {
-        LANE_1_NORTH: { duration: Math.max(20, Math.round(q1.vehicles * 1.2 + 10)), ...q1, density: getDensityLabel(q1.vehicles) },
-        LANE_2_SOUTH: { duration: Math.max(20, Math.round(q2.vehicles * 1.2 + 10)), ...q2, density: getDensityLabel(q2.vehicles) },
-        LANE_3_EAST: { duration: Math.max(20, Math.round(q3.vehicles * 1.2 + 10)), ...q3, density: getDensityLabel(q3.vehicles) },
-        LANE_4_WEST: { duration: Math.max(20, Math.round(q4.vehicles * 1.2 + 10)), ...q4, density: getDensityLabel(q4.vehicles) }
-      }
-    }));
+    setVisionSignalState((prev) => {
+      const l1Duration = q1 ? Math.max(20, Math.round(q1.vehicles * 1.2 + 10)) : prev.laneTimers?.LANE_1_NORTH?.duration || 38;
+      
+      return {
+        ...prev,
+        isAutoCycleActive: true,
+        masterMode: 'DYNAMIC_CYCLE',
+        activeLaneId: 'LANE_1_NORTH',
+        activeLaneIndex: 0,
+        remainingSec: l1Duration,
+        totalDuration: l1Duration,
+        lightColor: 'GREEN',
+        laneTimers: {
+          LANE_1_NORTH: q1 ? { duration: l1Duration, ...distributeVehicles(q1.vehicles), ...q1, density: getDensityLabel(q1.vehicles) } : prev.laneTimers?.LANE_1_NORTH,
+          LANE_2_SOUTH: q2 ? { duration: Math.max(20, Math.round(q2.vehicles * 1.2 + 10)), ...distributeVehicles(q2.vehicles), ...q2, density: getDensityLabel(q2.vehicles) } : prev.laneTimers?.LANE_2_SOUTH,
+          LANE_3_EAST: q3 ? { duration: Math.max(20, Math.round(q3.vehicles * 1.2 + 10)), ...distributeVehicles(q3.vehicles), ...q3, density: getDensityLabel(q3.vehicles) } : prev.laneTimers?.LANE_3_EAST,
+          LANE_4_WEST: q4 ? { duration: Math.max(20, Math.round(q4.vehicles * 1.2 + 10)), ...distributeVehicles(q4.vehicles), ...q4, density: getDensityLabel(q4.vehicles) } : prev.laneTimers?.LANE_4_WEST
+        }
+      };
+    });
   };
 
   const getDensityLabel = (vehCount) => {
@@ -311,15 +323,6 @@ export default function VisionPage() {
               </select>
             </div>
           </div>
-
-          <Button
-            variant="outline"
-            onClick={handleLoadSampleCCTVFeeds}
-            className="py-2 text-slate-300 border-slate-800 hover:bg-slate-900"
-          >
-            <RefreshCw className="h-4 w-4 text-cyan-400" />
-            <span>Load Raw Feeds</span>
-          </Button>
 
           {hasAnyFeed && (
             <Button
@@ -411,27 +414,33 @@ export default function VisionPage() {
               action={
                 hasFeed ? (
                   <div className="flex items-center gap-2">
-                    {masterMode === 'SCANNING_TRAFFIC' ? (
-                      <Badge variant="info" className="text-[10px] animate-pulse flex items-center gap-1">
-                        <ScanLine className="h-3 w-3 animate-spin text-cyan-400" /> SCANNING ({remainingSec}s)
-                      </Badge>
-                    ) : masterMode === 'ALL_GREEN_HOLD' ? (
-                      <Badge variant="success" className="text-[10px] animate-pulse">
-                        🟢 ALL GREEN ({remainingSec}s)
-                      </Badge>
-                    ) : masterMode === 'ALL_RED_HOLD' ? (
-                      <Badge variant="danger" className="text-[10px] animate-pulse">
-                        🔴 ALL RED ({remainingSec}s)
-                      </Badge>
-                    ) : isCurrentActiveCycle ? (
-                      <Badge variant={lightColor === 'GREEN' ? 'success' : lightColor === 'YELLOW' ? 'warning' : 'danger'} className="text-[10px] animate-pulse">
-                        {lightColor === 'GREEN' ? `🟢 ACTIVE GREEN (${remainingSec}s)` :
-                         lightColor === 'YELLOW' ? `🟡 ORANGE (${remainingSec}s)` :
-                         `🔴 RED LIGHT (${remainingSec}s)`}
-                      </Badge>
+                    {isAnalyzed ? (
+                      masterMode === 'SCANNING_TRAFFIC' ? (
+                        <Badge variant="info" className="text-[10px] animate-pulse flex items-center gap-1">
+                          <ScanLine className="h-3 w-3 animate-spin text-cyan-400" /> SCANNING ({remainingSec}s)
+                        </Badge>
+                      ) : masterMode === 'ALL_GREEN_HOLD' ? (
+                        <Badge variant="success" className="text-[10px] animate-pulse">
+                          🟢 ALL GREEN ({remainingSec}s)
+                        </Badge>
+                      ) : masterMode === 'ALL_RED_HOLD' ? (
+                        <Badge variant="danger" className="text-[10px] animate-pulse">
+                          🔴 ALL RED ({remainingSec}s)
+                        </Badge>
+                      ) : isCurrentActiveCycle ? (
+                        <Badge variant={lightColor === 'GREEN' ? 'success' : lightColor === 'YELLOW' ? 'warning' : 'danger'} className="text-[10px] animate-pulse">
+                          {lightColor === 'GREEN' ? `🟢 ACTIVE GREEN (${remainingSec}s)` :
+                           lightColor === 'YELLOW' ? `🟡 ORANGE (${remainingSec}s)` :
+                           `🔴 RED LIGHT (${remainingSec}s)`}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px]">
+                          🔴 RED LIGHT
+                        </Badge>
+                      )
                     ) : (
-                      <Badge variant="outline" className="text-[10px]">
-                        🔴 RED LIGHT
+                      <Badge variant="outline" className="text-[10px] text-slate-400 border-slate-700">
+                        PENDING ANALYSIS
                       </Badge>
                     )}
                     <Badge variant={feed.isCustomUpload ? 'info' : isAnalyzed ? 'success' : 'warning'}>
@@ -475,7 +484,7 @@ export default function VisionPage() {
 
                     {/* Camera Feed Identifier Badge */}
                     <div className="absolute top-3 left-3 bg-black/80 backdrop-blur-md px-3 py-1 rounded-md text-[11px] font-extrabold text-white z-10 border border-slate-700/60 shadow-md flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${isCurrentActiveCycle || masterMode === 'ALL_GREEN_HOLD' ? 'bg-emerald-400 animate-ping' : masterMode === 'SCANNING_TRAFFIC' ? 'bg-cyan-400 animate-ping' : 'bg-slate-500'}`} />
+                      <span className={`w-2 h-2 rounded-full ${isAnalyzed ? (isCurrentActiveCycle || masterMode === 'ALL_GREEN_HOLD' ? 'bg-emerald-400 animate-ping' : masterMode === 'SCANNING_TRAFFIC' ? 'bg-cyan-400 animate-ping' : 'bg-slate-500') : 'bg-slate-600'}`} />
                       {lane.id} CCTV FEED
                     </div>
 
@@ -527,51 +536,70 @@ export default function VisionPage() {
       </div>
 
       {/* Comprehensive 4-Lane Telemetry & Vehicle Classification Breakdown Table */}
-      {detectionResult && (
-        <Card 
-          title="IISc UVH-26 Fine-Tuned 4-Lane Telemetry Breakdown" 
-          subtitle="IRC:106-1990 PCE Queue Length calculations with vehicle class occupancy factors and spatial queue MAE accuracy"
-          action={<Activity className="h-5 w-5 text-emerald-400" />}
-        >
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead>
-                <tr className="border-b border-slate-800 text-slate-400 uppercase tracking-wider font-semibold bg-slate-900/60">
-                  <th className="py-3.5 px-4">Approach Lane</th>
-                  <th className="py-3.5 px-4">🚗 Cars</th>
-                  <th className="py-3.5 px-4">🏍 2-Wheelers</th>
-                  <th className="py-3.5 px-4">🛺 Autos</th>
-                  <th className="py-3.5 px-4">🚌 Buses</th>
-                  <th className="py-3.5 px-4">🚚 Trucks</th>
-                  <th className="py-3.5 px-4">🧮 Total Count (PCE)</th>
-                  <th className="py-3.5 px-4">📏 Accurate Queue Length</th>
-                  <th className="py-3.5 px-4">📈 Queue MAE Precision</th>
-                  <th className="py-3.5 px-4 text-right">🟢 Signal Allocation</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-850/60">
-                {LANE_NAMES.map((lane) => {
-                  const qData = detectionResult?.queue_lengths?.[lane.id] || { vehicles: 22, meters: 33.3, pce: 13.9, cars: 5, bikes: 5, autos: 12, buses: 0, trucks: 0, mae: '0.8m' };
-                  const cars = qData.cars;
-                  const bikes = qData.bikes;
-                  const autos = qData.autos;
-                  const buses = qData.buses;
-                  const trucks = qData.trucks;
-                  const totalCount = qData.vehicles;
-                  const queueMeters = qData.meters;
-                  const pceSum = qData.pce;
-                  const mae = qData.mae;
-                  
-                  const densityScore = Math.min(100, Math.round((totalCount / 50) * 100));
-                  let badgeVariant = 'success';
-                  let densityLabel = `MODERATE (${densityScore}%)`;
-                  if (densityScore > 85) {
-                    badgeVariant = 'danger';
-                    densityLabel = `CRITICAL (${densityScore}%)`;
-                  } else if (densityScore > 65) {
-                    badgeVariant = 'warning';
-                    densityLabel = `HIGH (${densityScore}%)`;
-                  }
+      <Card 
+        title="IISc UVH-26 Fine-Tuned 4-Lane Telemetry Breakdown" 
+        subtitle="IRC:106-1990 PCE Queue Length calculations with vehicle class occupancy factors and spatial queue MAE accuracy"
+        action={<Activity className="h-5 w-5 text-emerald-400" />}
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-300">
+            <thead>
+              <tr className="border-b border-slate-800 text-slate-400 uppercase tracking-wider font-semibold bg-slate-900/60">
+                <th className="py-3.5 px-4">Approach Lane</th>
+                <th className="py-3.5 px-4">🚗 Cars</th>
+                <th className="py-3.5 px-4">🏍 2-Wheelers</th>
+                <th className="py-3.5 px-4">🛺 Autos</th>
+                <th className="py-3.5 px-4">🚌 Buses</th>
+                <th className="py-3.5 px-4">🚚 Trucks</th>
+                <th className="py-3.5 px-4">🧮 Total Count (PCE)</th>
+                <th className="py-3.5 px-4">📏 Accurate Queue Length</th>
+                <th className="py-3.5 px-4 text-right">🟢 Signal Allocation</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-850/60">
+              {LANE_NAMES.map((lane) => {
+                const qData = detectionResult?.queue_lengths?.[lane.id];
+
+                if (!isAnalyzed || !qData || qData.vehicles === undefined) {
+                  return (
+                    <tr key={lane.id} className="hover:bg-slate-900/40 text-slate-500">
+                      <td className="py-4 px-4 font-bold text-slate-400">{lane.title}</td>
+                      <td colSpan="7" className="py-4 px-4 text-center italic">No feed analyzed. Click 'Analyze 4-Lane CCTV Feeds' to compute telemetry.</td>
+                      <td className="py-4 px-4 text-right"><Badge variant="outline">OFFLINE</Badge></td>
+                    </tr>
+                  );
+                }
+
+                const totalCount = qData.vehicles || 0;
+                let cars = qData.cars;
+                let bikes = qData.bikes;
+                let autos = qData.autos;
+                let buses = qData.buses;
+                let trucks = qData.trucks;
+
+                if (cars === undefined) {
+                  const dist = distributeVehicles(totalCount);
+                  cars = dist.cars;
+                  bikes = dist.bikes;
+                  autos = dist.autos;
+                  buses = dist.buses;
+                  trucks = dist.trucks;
+                }
+
+                const queueMeters = qData.meters;
+                const pceSum = qData.pce || round1(cars * 1.0 + bikes * 0.35 + autos * 0.6 + buses * 2.5 + trucks * 3.0);
+                const mae = qData.mae || '0.9m';
+                
+                const densityScore = Math.min(100, Math.round((totalCount / 50) * 100));
+                let badgeVariant = 'success';
+                let densityLabel = `MODERATE (${densityScore}%)`;
+                if (densityScore > 85) {
+                  badgeVariant = 'danger';
+                  densityLabel = `CRITICAL (${densityScore}%)`;
+                } else if (densityScore > 65) {
+                  badgeVariant = 'warning';
+                  densityLabel = `HIGH (${densityScore}%)`;
+                }
 
                   const recommendedSeconds = Math.max(15, Math.min(75, Math.round(totalCount * 1.2 + 10)));
                   const isCurrentActive = activeLaneId === lane.phaseId && masterMode === 'DYNAMIC_CYCLE';
@@ -595,9 +623,6 @@ export default function VisionPage() {
                       </td>
                       <td className="py-4 px-4 font-extrabold text-cyan-400 font-mono text-sm">
                         {queueMeters}m
-                      </td>
-                      <td className="py-4 px-4 font-bold text-emerald-400 font-mono text-xs">
-                        ±{mae} (Accurate)
                       </td>
                       <td className="py-4 px-4 text-right">
                         {masterMode === 'SCANNING_TRAFFIC' ? (
@@ -629,7 +654,6 @@ export default function VisionPage() {
             </table>
           </div>
         </Card>
-      )}
     </div>
   );
 }
