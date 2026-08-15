@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import VisionPage from './pages/VisionPage';
 import SignalsPage from './pages/SignalsPage';
 import ViolationsPage from './pages/ViolationsPage';
+import BRTSLaneGuardPage from './pages/BRTSLaneGuardPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import PredictionsPage from './pages/PredictionsPage';
 import SimulationPage from './pages/SimulationPage';
@@ -131,7 +132,8 @@ export default function App() {
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/vision" element={<ProtectedRoute><VisionPage /></ProtectedRoute>} />
         <Route path="/signals" element={<ProtectedRoute><SignalsPage /></ProtectedRoute>} />
-        <Route path="/violations" element={<ProtectedRoute><ViolationsPage /></ProtectedRoute>} />
+        <Route path="/violations" element={<ProtectedRoute><BRTSLaneGuardPage /></ProtectedRoute>} />
+        <Route path="/brts" element={<ProtectedRoute><BRTSLaneGuardPage /></ProtectedRoute>} />
         <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
         <Route path="/predictions" element={<ProtectedRoute><PredictionsPage /></ProtectedRoute>} />
         <Route path="/simulation" element={<ProtectedRoute><SimulationPage /></ProtectedRoute>} />

@@ -8,6 +8,7 @@ import {
   LineChart, 
   Sparkles, 
   Cpu, 
+  ShieldAlert,
   X 
 } from 'lucide-react';
 
@@ -15,7 +16,7 @@ const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/vision', label: 'Vision Sensing', icon: Eye },
   { path: '/signals', label: 'Manual Signal Control', icon: TrafficCone },
-  { path: '/violations', label: 'BRTS Violations', icon: AlertTriangle },
+  { path: '/brts', label: 'BRTS Lane Guard', icon: ShieldAlert },
   { path: '/analytics', label: 'Analytics', icon: LineChart },
   { path: '/predictions', label: 'Predictions', icon: Sparkles },
   { path: '/simulation', label: 'What-If Simulation', icon: Cpu }
