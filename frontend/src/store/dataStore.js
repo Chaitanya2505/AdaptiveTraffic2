@@ -23,18 +23,13 @@ export const useDataStore = create((set, get) => ({
   visionSignalState: {
     activeLaneId: 'LANE_1_NORTH',
     activeLaneIndex: 0,
-    remainingSec: 38,
-    totalDuration: 38,
-    lightColor: 'GREEN',
-    masterMode: 'DYNAMIC_CYCLE',
-    statusMessage: 'Vision AI Dynamic Cycle Active',
+    remainingSec: 0,
+    totalDuration: 0,
+    lightColor: 'RED',
+    masterMode: 'WAITING',
+    statusMessage: 'Waiting for Vision AI or Manual Override',
     isAutoCycleActive: false,
-    laneTimers: {
-      LANE_1_NORTH: { duration: 38, vehicles: 22, meters: 33.3, density: 'MODERATE (55%)', cars: 5, bikes: 5, autos: 12, buses: 0, trucks: 0, pce: 13.9, mae: '0.8m' },
-      LANE_2_SOUTH: { duration: 75, vehicles: 52, meters: 86.6, density: 'CRITICAL (100%)', cars: 32, bikes: 8, autos: 6, buses: 3, trucks: 3, pce: 54.1, mae: '1.1m' },
-      LANE_3_EAST: { duration: 52, vehicles: 32, meters: 47.0, density: 'HIGH (80%)', cars: 16, bikes: 4, autos: 12, buses: 0, trucks: 0, pce: 24.5, mae: '0.9m' },
-      LANE_4_WEST: { duration: 60, vehicles: 37, meters: 66.6, density: 'HIGH (85%)', cars: 21, bikes: 4, autos: 6, buses: 3, trucks: 3, pce: 41.6, mae: '1.0m' }
-    }
+    laneTimers: {}
   },
 
   setJunctions: (junctions) => set({ junctions }),

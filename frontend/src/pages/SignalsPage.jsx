@@ -40,6 +40,7 @@ export default function SignalsPage() {
   const [manualDuration, setManualDuration] = useState(30);
 
   const [history, setHistory] = useState([]);
+  const [telemetry, setTelemetry] = useState({});
   const { loading, request } = useApi();
   const updateSignal = useDataStore((state) => state.updateSignal);
 
@@ -59,6 +60,40 @@ export default function SignalsPage() {
     fetchSignalHistory();
   }, [selectedJunction]);
 
+  // Dynamic Telemetry Polling
+  useEffect(() => {
+    let isSubscribed = true;
+    const fetchTelemetry = async () => {
+      try {
+        const data = await request('get', `/junctions/${selectedJunction}/status`);
+        if (isSubscribed && data && data.lane_queues) {
+          const newTelemetry = {};
+          data.lane_queues.forEach(lq => {
+            const laneMap = { 'L1': 'LANE_1_NORTH', 'L2': 'LANE_2_SOUTH', 'L3': 'LANE_3_EAST', 'L4': 'LANE_4_WEST' };
+            const mappedId = laneMap[lq.lane_id];
+            if (mappedId) {
+              newTelemetry[mappedId] = {
+                vehicles: lq.vehicle_count,
+                meters: lq.queue_meters,
+                cars: 'N/A', bikes: 'N/A', autos: 'N/A', buses: 'N/A', trucks: 'N/A'
+              };
+            }
+          });
+          setTelemetry(newTelemetry);
+        }
+      } catch (err) {
+        if (isSubscribed) setTelemetry({});
+      }
+    };
+    
+    fetchTelemetry();
+    const interval = setInterval(fetchTelemetry, 5000);
+    return () => {
+      isSubscribed = false;
+      clearInterval(interval);
+    };
+  }, [selectedJunction]);
+
   const simulateOfflineHistory = () => {
     setHistory([
       { id: 201, junction_id: selectedJunction, phase: 'LANE_1_NORTH', duration: 35, mode: 'VISION_AI', timestamp: new Date(Date.now() - 45000).toISOString() },
@@ -74,29 +109,122 @@ export default function SignalsPage() {
   const masterMode = visionSignalState?.masterMode || 'DYNAMIC_CYCLE';
   const statusMessage = visionSignalState?.statusMessage || 'Vision AI Dynamic Cycle Active';
 
-  // Set single lane to GREEN or RED directly from 4-Lane Matrix
-  const handleSetLaneLight = (laneId, targetColor) => {
-    setTargetPhase(laneId);
+  // Live Countdown Sequence Engine
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setVisionSignalState((prev) => {
+        if (!prev.isAutoCycleActive) return prev;
 
-    if (targetColor === 'GREEN') {
-      const durNum = manualDuration || 30;
-      setVisionSignalState({
+        if (prev.remainingSec > 0) {
+          return { ...prev, remainingSec: prev.remainingSec - 1 };
+        }
+
+        // Time's up
+        if (prev.masterMode === 'ALL_RED_HOLD' || prev.masterMode === 'ALL_GREEN_HOLD') {
+          // Resume normal cycle at Lane 1
+          const l1Duration = prev.laneTimers?.['LANE_1_NORTH']?.duration || 30;
+          return {
+            ...prev,
+            masterMode: 'DYNAMIC_CYCLE',
+            activeLaneId: 'LANE_1_NORTH',
+            activeLaneIndex: 0,
+            lightColor: 'GREEN',
+            remainingSec: l1Duration,
+            totalDuration: l1Duration,
+            statusMessage: 'Vision AI Dynamic Cycle Resumed'
+          };
+        }
+
+        if (prev.masterMode === 'DYNAMIC_CYCLE') {
+          if (prev.lightColor === 'GREEN') {
+            // Transition to Yellow
+            return { ...prev, lightColor: 'YELLOW', remainingSec: 3 };
+          } else {
+            // Move to next lane
+            const phases = ['LANE_1_NORTH', 'LANE_2_SOUTH', 'LANE_3_EAST', 'LANE_4_WEST'];
+            let nextIndex = (phases.indexOf(prev.activeLaneId) + 1) % 4;
+            
+            // Skip lanes with duration 0 (set to RED)
+            let attempts = 0;
+            while ((prev.laneTimers?.[phases[nextIndex]]?.duration || 0) <= 0 && attempts < 4) {
+              nextIndex = (nextIndex + 1) % 4;
+              attempts++;
+            }
+            
+            const nextLane = phases[nextIndex];
+            const nextDuration = prev.laneTimers?.[nextLane]?.duration || 30;
+
+            return {
+              ...prev,
+              activeLaneId: nextLane,
+              activeLaneIndex: nextIndex,
+              lightColor: 'GREEN',
+              remainingSec: nextDuration,
+              totalDuration: nextDuration
+            };
+          }
+        }
+        return prev;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [setVisionSignalState]);
+
+  // Set single lane Green duration
+  const handleSetGreen = (laneId) => {
+    const durNum = manualDuration || 30;
+    setVisionSignalState(prev => {
+      const updatedTimers = { ...prev.laneTimers, [laneId]: { ...prev.laneTimers?.[laneId], duration: durNum } };
+      // If it's currently active and GREEN, update its remaining time immediately
+      if (prev.activeLaneId === laneId && prev.lightColor === 'GREEN' && prev.masterMode === 'DYNAMIC_CYCLE') {
+         return {
+           ...prev,
+           laneTimers: updatedTimers,
+           remainingSec: durNum,
+           totalDuration: durNum
+         };
+      }
+      return { ...prev, laneTimers: updatedTimers };
+    });
+    handleApplyOverride(laneId, durNum);
+  };
+
+  // Set single lane to skip (Red)
+  const handleSetRed = (laneId) => {
+    setVisionSignalState(prev => {
+      if (prev.activeLaneId === laneId && prev.masterMode === 'DYNAMIC_CYCLE') {
+         // Force current turn to end instantly
+         return { ...prev, remainingSec: 0 };
+      }
+      const updatedTimers = { ...prev.laneTimers, [laneId]: { ...prev.laneTimers?.[laneId], duration: 0 } };
+      return { ...prev, laneTimers: updatedTimers };
+    });
+    handleApplyOverride(laneId, 0);
+  };
+
+  // Start sequence from specific lane
+  const handleStartSignal = (laneId) => {
+    setTargetPhase(laneId);
+    setVisionSignalState(prev => {
+      const nextDuration = prev.laneTimers?.[laneId]?.duration || 30;
+      return {
+        ...prev,
         activeLaneId: laneId,
-        remainingSec: durNum,
-        totalDuration: durNum,
+        activeLaneIndex: ['LANE_1_NORTH', 'LANE_2_SOUTH', 'LANE_3_EAST', 'LANE_4_WEST'].indexOf(laneId),
+        remainingSec: nextDuration,
+        totalDuration: nextDuration,
         lightColor: 'GREEN',
         masterMode: 'DYNAMIC_CYCLE',
-        statusMessage: `Manual Green Active for ${laneId.replace(/_/g, ' ')}`,
+        statusMessage: `Manual Start for ${laneId.replace(/_/g, ' ')}`,
         isAutoCycleActive: true
-      });
-      handleApplyOverride(laneId, durNum);
-    } else {
-      setVisionSignalState(prev => ({
-        ...prev,
-        lightColor: 'RED',
-        remainingSec: 0
-      }));
-    }
+      };
+    });
+    // We should safely try to read duration via a separate reference since state update is async, 
+    // but we can just use the fallback 30 here and wait for react cycle. 
+    // Wait, the API call should use the duration.
+    // We'll just fetch from current store.
+    const currentDur = useDataStore.getState().visionSignalState?.laneTimers?.[laneId]?.duration || 30;
+    handleApplyOverride(laneId, currentDur);
   };
 
   // Master Global controls: ALL RED or ALL GREEN
@@ -327,14 +455,25 @@ export default function SignalsPage() {
                 const isAllGreenMode = masterMode === 'ALL_GREEN_HOLD';
                 const isAllRedMode = masterMode === 'ALL_RED_HOLD';
                 const isScanning = masterMode === 'SCANNING_TRAFFIC';
-                const laneData = visionSignalState?.laneTimers?.[p.id] || { 
-                  duration: 30, vehicles: 5, meters: 18.5, density: 'MODERATE (40%)', cars: 3, bikes: 2, autos: 1, buses: 0, trucks: 0 
+                const isWaiting = masterMode === 'WAITING';
+                
+                // Fetch dynamic telemetry or fallback to N/A
+                const laneTelemetry = telemetry[p.id];
+                const displayData = {
+                  vehicles: laneTelemetry?.vehicles ?? 'N/A',
+                  meters: laneTelemetry?.meters ?? 'N/A',
+                  duration: visionSignalState?.laneTimers?.[p.id]?.duration ?? 'N/A',
+                  cars: laneTelemetry?.cars ?? 'N/A',
+                  bikes: laneTelemetry?.bikes ?? 'N/A',
+                  autos: laneTelemetry?.autos ?? 'N/A',
+                  buses: laneTelemetry?.buses ?? 'N/A',
+                  trucks: laneTelemetry?.trucks ?? 'N/A'
                 };
 
                 let currentLight = 'RED';
                 if (isAllGreenMode) {
                   currentLight = 'GREEN';
-                } else if (isAllRedMode) {
+                } else if (isAllRedMode || isWaiting) {
                   currentLight = 'RED';
                 } else if (isScanning) {
                   currentLight = 'YELLOW';
@@ -379,45 +518,53 @@ export default function SignalsPage() {
                     {/* Vision Sensing Synced Telemetry Display */}
                     <div className="bg-slate-950/80 p-3 rounded-lg border border-slate-850 space-y-2">
                       <div className="flex items-center justify-between text-xs text-white">
-                        <span>Total Vehicles: <strong className="text-emerald-400 font-mono">{laneData.vehicles} veh</strong></span>
-                        <span>Queue: <strong className="text-cyan-400 font-mono">{laneData.meters}m</strong></span>
-                        <span>Allocated Time: <strong className="text-amber-400 font-mono">{laneData.duration}s</strong></span>
+                        <span>Total Vehicles: <strong className="text-emerald-400 font-mono">{displayData.vehicles !== 'N/A' ? `${displayData.vehicles} veh` : 'No data'}</strong></span>
+                        <span>Queue: <strong className="text-cyan-400 font-mono">{displayData.meters !== 'N/A' ? `${displayData.meters}m` : 'No data'}</strong></span>
+                        <span>Allocated Time: <strong className="text-amber-400 font-mono">{displayData.duration !== 'N/A' ? `${displayData.duration}s` : 'N/A'}</strong></span>
                       </div>
 
                       {/* Class breakdown icons */}
                       <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-slate-900 text-[10px] text-slate-400">
-                        <span>🚗 Cars: <strong className="text-slate-200">{laneData.cars ?? 2}</strong></span>
-                        <span>🏍 2W: <strong className="text-slate-200">{laneData.bikes ?? 1}</strong></span>
-                        <span>🛺 Autos: <strong className="text-slate-200">{laneData.autos ?? 1}</strong></span>
-                        <span>🚌 Buses: <strong className="text-slate-200">{laneData.buses ?? 0}</strong></span>
-                        <span>🚚 Heavy: <strong className="text-slate-200">{laneData.trucks ?? 0}</strong></span>
+                        <span>🚗 Cars: <strong className="text-slate-200">{displayData.cars}</strong></span>
+                        <span>🏍 2W: <strong className="text-slate-200">{displayData.bikes}</strong></span>
+                        <span>🛺 Autos: <strong className="text-slate-200">{displayData.autos}</strong></span>
+                        <span>🚌 Buses: <strong className="text-slate-200">{displayData.buses}</strong></span>
+                        <span>🚚 Heavy: <strong className="text-slate-200">{displayData.trucks}</strong></span>
                       </div>
                     </div>
 
                     {/* Individual Manual Action Buttons */}
-                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-850">
+                    <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-850">
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); handleSetLaneLight(p.id, 'GREEN'); }}
-                        className={`py-2 px-3 rounded-lg font-extrabold text-xs transition-all border flex items-center justify-center gap-1.5 ${
-                          isGreen
+                        onClick={(e) => { e.stopPropagation(); handleSetGreen(p.id); }}
+                        className={`py-2 px-1 rounded-lg font-extrabold text-[10px] transition-all border flex items-center justify-center ${
+                          isGreen && isCurrentActive
                             ? 'bg-emerald-500 text-white border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.4)]'
                             : 'bg-emerald-950/30 text-emerald-400 border-emerald-900 hover:bg-emerald-500/20'
                         }`}
                       >
-                        🟢 SET GREEN
+                        🟢 GREEN
                       </button>
 
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); handleSetLaneLight(p.id, 'RED'); }}
-                        className={`py-2 px-3 rounded-lg font-extrabold text-xs transition-all border flex items-center justify-center gap-1.5 ${
-                          !isGreen && !isYellow
+                        onClick={(e) => { e.stopPropagation(); handleSetRed(p.id); }}
+                        className={`py-2 px-1 rounded-lg font-extrabold text-[10px] transition-all border flex items-center justify-center ${
+                          !isGreen && !isYellow && isCurrentActive
                             ? 'bg-red-600 text-white border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.4)]'
                             : 'bg-red-950/30 text-red-400 border-red-900 hover:bg-red-600/20'
                         }`}
                       >
-                        🔴 SET RED
+                        🔴 RED
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleStartSignal(p.id); }}
+                        className={`py-2 px-1 rounded-lg font-extrabold text-[10px] transition-all border flex items-center justify-center bg-blue-950/30 text-blue-400 border-blue-900 hover:bg-blue-600/20`}
+                      >
+                        ▶️ START
                       </button>
                     </div>
                   </div>

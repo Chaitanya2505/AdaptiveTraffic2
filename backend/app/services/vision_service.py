@@ -22,8 +22,16 @@ except ImportError:
 try:
     import easyocr
     HAS_EASYOCR = True
-    # Initialize reader once, CPU mode for broad compatibility
-    reader = easyocr.Reader(['en'], gpu=False)
+    
+    use_gpu = False
+    try:
+        import torch
+        if torch.cuda.is_available():
+            use_gpu = True
+    except ImportError:
+        pass
+        
+    reader = easyocr.Reader(['en'], gpu=use_gpu)
 except ImportError:
     HAS_EASYOCR = False
     reader = None
@@ -121,6 +129,17 @@ class VehicleDetector:
             except Exception as e:
                 print(f"[VISION SERVICE] Error loading UVH-26 model: {str(e)}. Running in Mock Mode.")
                 self.is_mock = True
+
+            if not self.is_mock and self.model is not None:
+                try:
+                    import torch
+                    if torch.cuda.is_available():
+                        self.model.to('cuda')
+                        print("[VISION SERVICE] Successfully moved YOLO model to GPU (CUDA) for accelerated inference.")
+                    else:
+                        print("[VISION SERVICE] CUDA not available, YOLO model will run on CPU.")
+                except ImportError:
+                    pass
         else:
             print("[VISION SERVICE] Running VehicleDetector in Mock Mode.")
 

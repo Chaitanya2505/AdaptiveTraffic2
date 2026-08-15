@@ -110,13 +110,38 @@ export default function VisionPage() {
         
         const formData = new FormData();
         let fileCount = 0;
-        Object.entries(currentFeeds).forEach(([idx, feed]) => {
+        
+        const extractFrameFromVideo = (videoElement, name) => {
+          return new Promise((resolve) => {
+            const canvas = document.createElement('canvas');
+            canvas.width = videoElement.videoWidth || 1280;
+            canvas.height = videoElement.videoHeight || 720;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob((blob) => {
+              resolve(new File([blob], `${name}-snapshot.jpg`, { type: 'image/jpeg' }));
+            }, 'image/jpeg', 0.95);
+          });
+        };
+
+        for (const [idx, feed] of Object.entries(currentFeeds)) {
           if (feed.file) {
-            console.log(`[VisionPage] Adding Lane ${parseInt(idx) + 1} file: ${feed.file.name} (${(feed.file.size / 1024).toFixed(2)}KB)`);
-            formData.append('files', feed.file);
+            let finalFile = feed.file;
+            
+            // If it's a video, grab the current frame from the DOM element
+            if (feed.type === 'video') {
+              const videoElement = document.getElementById(`video-feed-${idx}`);
+              if (videoElement) {
+                console.log(`[VisionPage] Extracting live frame from Lane ${parseInt(idx) + 1} video...`);
+                finalFile = await extractFrameFromVideo(videoElement, `lane-${idx}`);
+              }
+            }
+            
+            console.log(`[VisionPage] Adding Lane ${parseInt(idx) + 1} file: ${finalFile.name} (${(finalFile.size / 1024).toFixed(2)}KB)`);
+            formData.append('files', finalFile);
             fileCount++;
           }
-        });
+        }
         formData.append('junction_id', selectedJunction);
 
         console.log(`[VisionPage] FormData prepared: ${fileCount} files + junction_id=${selectedJunction}`);
@@ -228,8 +253,7 @@ export default function VisionPage() {
       L3: getDynamicCountsForFeed(activeFeeds[2], 'L3', 2.5),
       L4: getDynamicCountsForFeed(activeFeeds[3], 'L4', 3.0)
     };
-
-    const totalVehicles = Math.max(1, (queues.L1.vehicles + queues.L2.vehicles + queues.L3.vehicles + queues.L4.vehicles));
+    const totalPce = Math.max(1, (queues.L1.pce + queues.L2.pce + queues.L3.pce + queues.L4.pce));
 
     const mockResult = {
       junction_id: selectedJunction,
@@ -239,7 +263,7 @@ export default function VisionPage() {
       queue_mae: '0.95m (98.2% Precision)',
       timestamp: new Date().toISOString(),
       queue_lengths: queues,
-      signal_optimization: { phase: 'LANE_1_NORTH', duration: Math.max(5, Math.min(60, Math.round(5 + 55 * (queues.L1.vehicles / totalVehicles)))) }
+      signal_optimization: { phase: 'LANE_1_NORTH', duration: Math.max(10, Math.min(60, Math.round(10 + 50 * (queues.L1.pce / totalPce)))) }
     };
 
     setDetectionResult(mockResult);
@@ -250,10 +274,10 @@ export default function VisionPage() {
     });
 
     setVisionSignalState((prev) => {
-      const l1Duration = Math.max(5, Math.min(60, Math.round(5 + 55 * (queues.L1.vehicles / totalVehicles))));
-      const l2Duration = Math.max(5, Math.min(60, Math.round(5 + 55 * (queues.L2.vehicles / totalVehicles))));
-      const l3Duration = Math.max(5, Math.min(60, Math.round(5 + 55 * (queues.L3.vehicles / totalVehicles))));
-      const l4Duration = Math.max(5, Math.min(60, Math.round(5 + 55 * (queues.L4.vehicles / totalVehicles))));
+      const l1Duration = Math.max(10, Math.min(60, Math.round(10 + 50 * (queues.L1.pce / totalPce))));
+      const l2Duration = Math.max(10, Math.min(60, Math.round(10 + 50 * (queues.L2.pce / totalPce))));
+      const l3Duration = Math.max(10, Math.min(60, Math.round(10 + 50 * (queues.L3.pce / totalPce))));
+      const l4Duration = Math.max(10, Math.min(60, Math.round(10 + 50 * (queues.L4.pce / totalPce))));
       
       return {
         ...prev,
@@ -281,19 +305,21 @@ export default function VisionPage() {
     const q4 = data.queue_lengths?.L4;
 
     setVisionSignalState((prev) => {
-      const v1 = q1 ? q1.vehicles : (prev.laneTimers?.LANE_1_NORTH?.vehicles || 0);
-      const v2 = q2 ? q2.vehicles : (prev.laneTimers?.LANE_2_SOUTH?.vehicles || 0);
-      const v3 = q3 ? q3.vehicles : (prev.laneTimers?.LANE_3_EAST?.vehicles || 0);
-      const v4 = q4 ? q4.vehicles : (prev.laneTimers?.LANE_4_WEST?.vehicles || 0);
-      const totalVehicles = Math.max(1, (v1 + v2 + v3 + v4));
+      const p1 = q1 ? q1.pce : (prev.laneTimers?.LANE_1_NORTH?.pce || 0);
+      const p2 = q2 ? q2.pce : (prev.laneTimers?.LANE_2_SOUTH?.pce || 0);
+      const p3 = q3 ? q3.pce : (prev.laneTimers?.LANE_3_EAST?.pce || 0);
+      const p4 = q4 ? q4.pce : (prev.laneTimers?.LANE_4_WEST?.pce || 0);
+      const totalPce = Math.max(1, (p1 + p2 + p3 + p4));
 
       // Note: If we are updating mid-cycle, we should not reset the active lane.
       // We keep the current remainingSec if it's not the first scan, but if it is the first scan, we start with l1Duration.
-      const l1Duration = Math.max(5, Math.min(60, Math.round(5 + 55 * (v1 / totalVehicles))));
-      const l2Duration = Math.max(5, Math.min(60, Math.round(5 + 55 * (v2 / totalVehicles))));
-      const l3Duration = Math.max(5, Math.min(60, Math.round(5 + 55 * (v3 / totalVehicles))));
-      const l4Duration = Math.max(5, Math.min(60, Math.round(5 + 55 * (v4 / totalVehicles))));
+      const l1Duration = Math.max(10, Math.min(60, Math.round(10 + 50 * (p1 / totalPce))));
+      const l2Duration = Math.max(10, Math.min(60, Math.round(10 + 50 * (p2 / totalPce))));
+      const l3Duration = Math.max(10, Math.min(60, Math.round(10 + 50 * (p3 / totalPce))));
+      const l4Duration = Math.max(10, Math.min(60, Math.round(10 + 50 * (p4 / totalPce))));
       
+      console.log(`[VisionPage] New Adaptive Cycle Timers Calculated: L1=${l1Duration}s, L2=${l2Duration}s, L3=${l3Duration}s, L4=${l4Duration}s`);
+
       const isFirstScan = !prev.isAutoCycleActive;
       const nextRemainingSec = isFirstScan ? l1Duration : prev.remainingSec;
 
@@ -430,7 +456,7 @@ export default function VisionPage() {
                       ) : isCurrentActiveCycle ? (
                         <Badge variant={lightColor === 'GREEN' ? 'success' : lightColor === 'YELLOW' ? 'warning' : 'danger'} className="text-[10px] animate-pulse">
                           {lightColor === 'GREEN' ? `🟢 ACTIVE GREEN (${remainingSec}s)` :
-                           lightColor === 'YELLOW' ? `🟡 ORANGE (${remainingSec}s)` :
+                           lightColor === 'YELLOW' ? `🟡 EVALUATING NEXT PHASE (${remainingSec}s)` :
                            `🔴 RED LIGHT (${remainingSec}s)`}
                         </Badge>
                       ) : (
@@ -467,6 +493,7 @@ export default function VisionPage() {
                   <>
                     {feed.type === 'video' ? (
                       <video
+                        id={`video-feed-${idx}`}
                         src={feed.preview}
                         controls
                         autoPlay
@@ -637,7 +664,7 @@ export default function VisionPage() {
                               : 'text-red-400 bg-red-950/60 border border-red-500/50'
                           }`}>
                             {lightColor === 'GREEN' ? `🟢 LIVE GREEN: ${remainingSec}s` :
-                             lightColor === 'YELLOW' ? `🟡 CAUTION: ${remainingSec}s` :
+                             lightColor === 'YELLOW' ? `🟡 EVALUATING NEXT PHASE: ${remainingSec}s` :
                              `🔴 STOP: 0s`}
                           </span>
                         ) : (
