@@ -38,12 +38,14 @@ export default function VisionPage() {
 
   const [selectedJunction, setSelectedJunction] = useState('J-001');
 
-  // Feeds state initialized dynamically (empty dropzone until feeds are loaded or uploaded)
+  const DEFAULT_TEST_VIDEO = '/sample_cctv/brt_sample.mp4';
+
+  // Feeds state initialized with test traffic video on all 4 approach lanes
   const [laneFeeds, setLaneFeeds] = useState({
-    0: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
-    1: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
-    2: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
-    3: { file: null, preview: null, raw: null, type: null, isCustomUpload: false }
+    0: { file: null, preview: DEFAULT_TEST_VIDEO, raw: DEFAULT_TEST_VIDEO, type: 'video', isCustomUpload: false },
+    1: { file: null, preview: DEFAULT_TEST_VIDEO, raw: DEFAULT_TEST_VIDEO, type: 'video', isCustomUpload: false },
+    2: { file: null, preview: DEFAULT_TEST_VIDEO, raw: DEFAULT_TEST_VIDEO, type: 'video', isCustomUpload: false },
+    3: { file: null, preview: DEFAULT_TEST_VIDEO, raw: DEFAULT_TEST_VIDEO, type: 'video', isCustomUpload: false }
   });
 
   const [isAnalyzed, setIsAnalyzed] = useState(false);
@@ -75,6 +77,19 @@ export default function VisionPage() {
       ...prev,
       [idx]: { file: null, preview: null, raw: null, type: null, isCustomUpload: false }
     }));
+    setVisionSignalState((prev) => ({ ...prev, isAutoCycleActive: false }));
+    setIsAnalyzed(false);
+  };
+
+  const handleResetDefaultFeeds = () => {
+    setLaneFeeds({
+      0: { file: null, preview: DEFAULT_TEST_VIDEO, raw: DEFAULT_TEST_VIDEO, type: 'video', isCustomUpload: false },
+      1: { file: null, preview: DEFAULT_TEST_VIDEO, raw: DEFAULT_TEST_VIDEO, type: 'video', isCustomUpload: false },
+      2: { file: null, preview: DEFAULT_TEST_VIDEO, raw: DEFAULT_TEST_VIDEO, type: 'video', isCustomUpload: false },
+      3: { file: null, preview: DEFAULT_TEST_VIDEO, raw: DEFAULT_TEST_VIDEO, type: 'video', isCustomUpload: false }
+    });
+    setDetectionResult(null);
+    setInferenceMetadata(null);
     setVisionSignalState((prev) => ({ ...prev, isAutoCycleActive: false }));
     setIsAnalyzed(false);
   };
@@ -400,6 +415,15 @@ export default function VisionPage() {
               </select>
             </div>
           </div>
+
+          <Button
+            variant="outline"
+            onClick={handleResetDefaultFeeds}
+            className="py-2 text-slate-300 hover:text-white border-slate-700 bg-slate-900/60"
+          >
+            <RefreshCw className="h-4 w-4 text-emerald-400" />
+            <span>Reset 4-Lane Feeds</span>
+          </Button>
 
           {hasAnyFeed && (
             <Button
