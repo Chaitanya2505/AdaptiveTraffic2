@@ -14,7 +14,8 @@ from app.routers import (
     signals_router,
     violations_router,
     auth_router,
-    simulation_router
+    simulation_router,
+    brts_router
 )
 from app.routers.analytics import router as analytics_router
 
@@ -114,6 +115,7 @@ app.include_router(signals_router)
 app.include_router(violations_router)
 app.include_router(simulation_router)
 app.include_router(analytics_router)
+app.include_router(brts_router)
 
 @app.get("/")
 async def root():
