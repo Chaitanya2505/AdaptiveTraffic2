@@ -41,34 +41,17 @@ async def seed_data():
         # Seed initial junctions if none exist
         junction_check = await db.execute(select(Junction).limit(1))
         if not junction_check.scalar_one_or_none():
-            j1 = Junction(
-                id="J-001",
-                name="Ring Road x BRTS",
-                latitude=21.1702,
-                longitude=72.8311,
-                num_lanes=4,
-                has_brts=True,
-                status="active"
-            )
-            j2 = Junction(
-                id="J-002",
-                name="Ghod Dod Road",
-                latitude=21.1750,
-                longitude=72.8350,
-                num_lanes=4,
-                has_brts=False,
-                status="active"
-            )
-            j3 = Junction(
-                id="J-003",
-                name="City Light Junction",
-                latitude=21.1650,
-                longitude=72.8250,
-                num_lanes=6,
-                has_brts=True,
-                status="active"
-            )
-            db.add_all([j1, j2, j3])
+            surat_junctions = [
+                Junction(id="J-001", name="SVNIT Junction", latitude=21.167790, longitude=72.785022, num_lanes=4, has_brts=True, status="active"),
+                Junction(id="J-002", name="7 University Road", latitude=21.151035, longitude=72.772901, num_lanes=4, has_brts=False, status="active"),
+                Junction(id="J-003", name="80 Feet Road Junction", latitude=21.151035, longitude=72.772901, num_lanes=4, has_brts=False, status="active"),
+                Junction(id="J-004", name="Unapani Road Junction", latitude=21.151035, longitude=72.772901, num_lanes=4, has_brts=True, status="active"),
+                Junction(id="J-005", name="Ghod Dod Road", latitude=21.151035, longitude=72.772901, num_lanes=4, has_brts=False, status="active"),
+                Junction(id="J-006", name="705 Udhana - Magdalla Rd", latitude=21.150858, longitude=72.772651, num_lanes=6, has_brts=True, status="active"),
+                Junction(id="J-007", name="Amroli Cross Rd", latitude=21.238064, longitude=72.848312, num_lanes=4, has_brts=True, status="active"),
+                Junction(id="J-008", name="Vesu Canal Rd", latitude=21.169641, longitude=72.811659, num_lanes=4, has_brts=True, status="active"),
+            ]
+            db.add_all(surat_junctions)
             
         await db.commit()
 
