@@ -229,6 +229,8 @@ export default function VisionPage() {
       L4: getDynamicCountsForFeed(activeFeeds[3], 'L4', 3.0)
     };
 
+    const totalVehicles = Math.max(1, (queues.L1.vehicles + queues.L2.vehicles + queues.L3.vehicles + queues.L4.vehicles));
+
     const mockResult = {
       junction_id: selectedJunction,
       batch_size: 4,
@@ -237,7 +239,7 @@ export default function VisionPage() {
       queue_mae: '0.95m (98.2% Precision)',
       timestamp: new Date().toISOString(),
       queue_lengths: queues,
-      signal_optimization: { phase: 'LANE_1_NORTH', duration: Math.max(20, Math.round(queues.L1.vehicles * 1.2 + 10)) }
+      signal_optimization: { phase: 'LANE_1_NORTH', duration: Math.max(5, Math.min(60, Math.round(5 + 55 * (queues.L1.vehicles / totalVehicles)))) }
     };
 
     setDetectionResult(mockResult);
@@ -248,10 +250,10 @@ export default function VisionPage() {
     });
 
     setVisionSignalState((prev) => {
-      const l1Duration = Math.max(20, Math.round(queues.L1.vehicles * 1.2 + 10));
-      const l2Duration = Math.max(20, Math.round(queues.L2.vehicles * 1.2 + 10));
-      const l3Duration = Math.max(20, Math.round(queues.L3.vehicles * 1.2 + 10));
-      const l4Duration = Math.max(20, Math.round(queues.L4.vehicles * 1.2 + 10));
+      const l1Duration = Math.max(5, Math.min(60, Math.round(5 + 55 * (queues.L1.vehicles / totalVehicles))));
+      const l2Duration = Math.max(5, Math.min(60, Math.round(5 + 55 * (queues.L2.vehicles / totalVehicles))));
+      const l3Duration = Math.max(5, Math.min(60, Math.round(5 + 55 * (queues.L3.vehicles / totalVehicles))));
+      const l4Duration = Math.max(5, Math.min(60, Math.round(5 + 55 * (queues.L4.vehicles / totalVehicles))));
       
       return {
         ...prev,
@@ -279,22 +281,36 @@ export default function VisionPage() {
     const q4 = data.queue_lengths?.L4;
 
     setVisionSignalState((prev) => {
-      const l1Duration = q1 ? Math.max(20, Math.round(q1.vehicles * 1.2 + 10)) : prev.laneTimers?.LANE_1_NORTH?.duration || 38;
+      const v1 = q1 ? q1.vehicles : (prev.laneTimers?.LANE_1_NORTH?.vehicles || 0);
+      const v2 = q2 ? q2.vehicles : (prev.laneTimers?.LANE_2_SOUTH?.vehicles || 0);
+      const v3 = q3 ? q3.vehicles : (prev.laneTimers?.LANE_3_EAST?.vehicles || 0);
+      const v4 = q4 ? q4.vehicles : (prev.laneTimers?.LANE_4_WEST?.vehicles || 0);
+      const totalVehicles = Math.max(1, (v1 + v2 + v3 + v4));
+
+      // Note: If we are updating mid-cycle, we should not reset the active lane.
+      // We keep the current remainingSec if it's not the first scan, but if it is the first scan, we start with l1Duration.
+      const l1Duration = Math.max(5, Math.min(60, Math.round(5 + 55 * (v1 / totalVehicles))));
+      const l2Duration = Math.max(5, Math.min(60, Math.round(5 + 55 * (v2 / totalVehicles))));
+      const l3Duration = Math.max(5, Math.min(60, Math.round(5 + 55 * (v3 / totalVehicles))));
+      const l4Duration = Math.max(5, Math.min(60, Math.round(5 + 55 * (v4 / totalVehicles))));
       
+      const isFirstScan = !prev.isAutoCycleActive;
+      const nextRemainingSec = isFirstScan ? l1Duration : prev.remainingSec;
+
       return {
         ...prev,
         isAutoCycleActive: true,
-        masterMode: 'DYNAMIC_CYCLE',
-        activeLaneId: 'LANE_1_NORTH',
-        activeLaneIndex: 0,
-        remainingSec: l1Duration,
-        totalDuration: l1Duration,
-        lightColor: 'GREEN',
+        masterMode: prev.masterMode === 'SCANNING_TRAFFIC' && !isFirstScan ? prev.masterMode : 'DYNAMIC_CYCLE',
+        activeLaneId: isFirstScan ? 'LANE_1_NORTH' : prev.activeLaneId,
+        activeLaneIndex: isFirstScan ? 0 : prev.activeLaneIndex,
+        remainingSec: nextRemainingSec,
+        totalDuration: isFirstScan ? l1Duration : prev.totalDuration,
+        lightColor: prev.lightColor || 'GREEN',
         laneTimers: {
           LANE_1_NORTH: q1 ? { duration: l1Duration, ...q1, density: getDensityLabel(q1.vehicles) } : prev.laneTimers?.LANE_1_NORTH,
-          LANE_2_SOUTH: q2 ? { duration: Math.max(20, Math.round(q2.vehicles * 1.2 + 10)), ...q2, density: getDensityLabel(q2.vehicles) } : prev.laneTimers?.LANE_2_SOUTH,
-          LANE_3_EAST: q3 ? { duration: Math.max(20, Math.round(q3.vehicles * 1.2 + 10)), ...q3, density: getDensityLabel(q3.vehicles) } : prev.laneTimers?.LANE_3_EAST,
-          LANE_4_WEST: q4 ? { duration: Math.max(20, Math.round(q4.vehicles * 1.2 + 10)), ...q4, density: getDensityLabel(q4.vehicles) } : prev.laneTimers?.LANE_4_WEST
+          LANE_2_SOUTH: q2 ? { duration: l2Duration, ...q2, density: getDensityLabel(q2.vehicles) } : prev.laneTimers?.LANE_2_SOUTH,
+          LANE_3_EAST: q3 ? { duration: l3Duration, ...q3, density: getDensityLabel(q3.vehicles) } : prev.laneTimers?.LANE_3_EAST,
+          LANE_4_WEST: q4 ? { duration: l4Duration, ...q4, density: getDensityLabel(q4.vehicles) } : prev.laneTimers?.LANE_4_WEST
         }
       };
     });
@@ -313,6 +329,15 @@ export default function VisionPage() {
   const remainingSec = visionSignalState?.remainingSec ?? 38;
   const lightColor = visionSignalState?.lightColor || 'GREEN';
   const masterMode = visionSignalState?.masterMode || 'DYNAMIC_CYCLE';
+
+  // Auto-trigger snapshot right before red light
+  useEffect(() => {
+    const isAutoCycleActive = visionSignalState?.isAutoCycleActive || false;
+    if (isAutoCycleActive && remainingSec === 5 && hasAnyFeed && !loading) {
+      console.log("[VisionPage] Timer hit 5s (Yellow Light). Auto-triggering live snapshot calculation for next cycle phase...");
+      handleAnalyze();
+    }
+  }, [remainingSec, visionSignalState?.isAutoCycleActive, hasAnyFeed, loading]);
 
   return (
     <div className="space-y-6">
