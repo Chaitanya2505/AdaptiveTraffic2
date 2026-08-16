@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
-import { ArrowLeft, MapPin, Compass, Navigation2, Layers, AlertCircle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, MapPin, Compass, Navigation2, Layers, AlertCircle, RefreshCw } from 'lucide-react';
 import { getJunctionBySlug, getAllJunctions } from '../lib/api';
 import { TYPE_COLORS } from '../components/SuratJunctionMap';
 
@@ -23,26 +23,28 @@ function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
 
 const createDetailMarkerIcon = (type, isMajor) => {
   const color = TYPE_COLORS[type] || '#3498db';
-  const size = isMajor ? 34 : 26;
+  const width = isMajor ? 34 : 28;
+  const height = isMajor ? 44 : 38;
 
   return L.divIcon({
     className: 'custom-detail-marker',
     html: `
-      <div class="relative flex items-center justify-center" style="width: ${size}px; height: ${size}px;">
-        <div class="absolute -inset-1 rounded-full animate-ping opacity-75" style="background-color: ${color};"></div>
-        <div class="relative flex items-center justify-center rounded-full shadow-lg border-2 border-white dark:border-gray-900" style="background-color: ${color}; width: ${size}px; height: ${size}px;">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
-            <circle cx="12" cy="10" r="3"/>
-          </svg>
-        </div>
+      <div class="relative flex items-center justify-center cursor-pointer" style="width: ${width}px; height: ${height}px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.6));">
+        <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-2 rounded-full animate-ping opacity-75 pointer-events-none" style="background-color: ${color};"></div>
+        <svg width="${width}" height="${height}" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 1C7.71573 1 1 7.71573 1 16C1 27.5 16 41 16 41C16 41 31 27.5 31 16C31 7.71573 24.2843 1 16 1Z" fill="${color}" stroke="#ffffff" stroke-width="2"/>
+          <circle cx="16" cy="15" r="9" fill="#0f172a" stroke="#ffffff" stroke-width="1.5"/>
+          <circle cx="16" cy="15" r="4.5" fill="${color}"/>
+        </svg>
       </div>
     `,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    popupAnchor: [0, -size / 2],
+    iconSize: [width, height],
+    iconAnchor: [width / 2, height],
+    popupAnchor: [0, -height],
   });
 };
+
+
 
 export default function JunctionDetailPage() {
   const { slug } = useParams();
@@ -78,12 +80,18 @@ export default function JunctionDetailPage() {
   // Calculate nearby junctions sorted by distance
   const nearbyJunctions = useMemo(() => {
     if (!junction || !allJunctions.length) return [];
+    const jLat = junction.lat ?? junction.latitude;
+    const jLon = junction.lon ?? junction.longitude;
     return allJunctions
       .filter((j) => j.id !== junction.id)
-      .map((j) => ({
-        ...j,
-        distanceKm: calculateHaversineDistance(junction.lat, junction.lon, j.lat, j.lon),
-      }))
+      .map((j) => {
+        const otherLat = j.lat ?? j.latitude;
+        const otherLon = j.lon ?? j.longitude;
+        return {
+          ...j,
+          distanceKm: calculateHaversineDistance(jLat, jLon, otherLat, otherLon),
+        };
+      })
       .sort((a, b) => a.distanceKm - b.distanceKm)
       .slice(0, 4);
   }, [junction, allJunctions]);
@@ -93,7 +101,7 @@ export default function JunctionDetailPage() {
       <div className="h-screen w-full bg-slate-950 flex items-center justify-center p-6">
         <div className="flex flex-col items-center gap-3">
           <RefreshCw className="h-8 w-8 text-emerald-400 animate-spin" />
-          <p className="text-sm text-slate-300 font-medium">Loading Junction Details...</p>
+          <p className="text-sm font-medium text-slate-300">Loading Junction Analytics...</p>
         </div>
       </div>
     );
@@ -101,41 +109,47 @@ export default function JunctionDetailPage() {
 
   if (error || !junction) {
     return (
-      <div className="h-screen w-full bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
-        <AlertCircle className="h-12 w-12 text-red-400 mb-3" />
-        <h2 className="text-lg font-bold text-white mb-1">Junction Not Found</h2>
-        <p className="text-xs text-slate-400 max-w-sm mb-4">{error || 'Requested junction does not exist.'}</p>
-        <button
-          onClick={() => navigate('/map')}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs py-2 px-4 rounded-lg transition-all"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Map
-        </button>
+      <div className="h-screen w-full bg-slate-950 flex items-center justify-center p-6">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 max-w-md text-center space-y-4 shadow-2xl">
+          <div className="h-12 w-12 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center mx-auto">
+            <AlertCircle className="h-6 w-6" />
+          </div>
+          <h2 className="text-lg font-bold text-white">Junction Not Found</h2>
+          <p className="text-xs text-slate-400">{error || 'The requested junction could not be retrieved.'}</p>
+          <button
+            onClick={() => navigate('/junctions')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition-all shadow-md"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Back to Junction Map
+          </button>
+        </div>
       </div>
     );
   }
 
+  const junctionLat = junction.lat ?? junction.latitude;
+  const junctionLon = junction.lon ?? junction.longitude;
   const mainColor = TYPE_COLORS[junction.junction_type] || '#3498db';
 
   return (
     <div className="flex flex-col h-screen w-full bg-slate-950 text-slate-100 overflow-hidden">
-      {/* Top Header Nav */}
-      <header className="flex items-center justify-between px-6 py-3 bg-slate-900 border-b border-slate-800 z-30 shrink-0">
+      {/* Top Header */}
+      <header className="flex items-center justify-between px-6 py-4 bg-slate-900 border-b border-slate-800 shrink-0">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/map')}
-            className="flex items-center gap-2 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 transition-all"
+            onClick={() => navigate('/junctions')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium transition-all"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Map
+            <ChevronLeft className="h-4 w-4" />
+            <span>Map View</span>
           </button>
           <div>
-            <h1 className="text-base font-bold text-white flex items-center gap-2">
+            <h1 className="text-lg font-bold text-white flex items-center gap-2.5">
               {junction.name}
               {junction.is_major && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  MAJOR CROSSING
+                <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
+                  Major Corridor
                 </span>
               )}
             </h1>
@@ -149,7 +163,7 @@ export default function JunctionDetailPage() {
         {/* Left 60%: Focused Leaflet Map */}
         <div className="w-full md:w-[60%] h-[50vh] md:h-full relative border-r border-slate-800">
           <MapContainer
-            center={[junction.lat, junction.lon]}
+            center={[junctionLat, junctionLon]}
             zoom={15}
             className="h-full w-full"
           >
@@ -158,7 +172,7 @@ export default function JunctionDetailPage() {
               url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
             />
             <Marker
-              position={[junction.lat, junction.lon]}
+              position={[junctionLat, junctionLon]}
               icon={createDetailMarkerIcon(junction.junction_type, junction.is_major)}
             >
               <Popup autoPan>

@@ -14,32 +14,51 @@ const STATUS_THEMES = {
 const createMarkerIcon = (status = 'normal', isBrts = false) => {
   const theme = STATUS_THEMES[status] || STATUS_THEMES.normal;
   const pinColor = isBrts ? '#6366f1' : theme.color;
+  const width = 30;
+  const height = 40;
 
   return L.divIcon({
     className: 'custom-traffic-pin',
     html: `
-      <div class="relative flex items-center justify-center cursor-pointer group" style="width: 32px; height: 32px;">
-        <div class="absolute -inset-1 rounded-full animate-ping opacity-60 pointer-events-none" style="background-color: ${pinColor};"></div>
-        <div class="relative flex items-center justify-center rounded-full shadow-xl border-2 border-white dark:border-slate-900 transition-transform duration-200 group-hover:scale-125" style="background-color: ${pinColor}; width: 28px; height: 28px;">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
-            <circle cx="12" cy="10" r="3"/>
-          </svg>
-        </div>
+      <div class="relative flex items-center justify-center cursor-pointer group" style="width: ${width}px; height: ${height}px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.6));">
+        <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-3 h-1.5 rounded-full animate-ping opacity-60 pointer-events-none" style="background-color: ${pinColor};"></div>
+        <svg width="${width}" height="${height}" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg" class="transition-transform duration-200 group-hover:scale-110">
+          <path d="M16 1C7.71573 1 1 7.71573 1 16C1 27.5 16 41 16 41C16 41 31 27.5 31 16C31 7.71573 24.2843 1 16 1Z" fill="${pinColor}" stroke="#ffffff" stroke-width="2"/>
+          <circle cx="16" cy="15" r="9" fill="#0f172a" stroke="#ffffff" stroke-width="1.5"/>
+          <circle cx="16" cy="15" r="4.5" fill="${pinColor}"/>
+        </svg>
       </div>
     `,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -18],
+    iconSize: [width, height],
+    iconAnchor: [width / 2, height],
+    popupAnchor: [0, -height],
   });
 };
 
+
+
 export default function LiveMap() {
   const junctions = useDataStore((state) => state.junctions);
-  const suratCenter = [21.1702, 72.8050]; // Centered across mapped Surat corridors
+  const suratCenter = [21.1800, 72.8250]; // Centered across all Surat corridors
+
+  const validJunctions = (junctions || []).filter((j) => {
+    const lat = j.latitude !== undefined ? j.latitude : j.lat;
+    const lon = j.longitude !== undefined ? j.longitude : j.lon;
+    return typeof lat === 'number' && typeof lon === 'number' && !isNaN(lat) && !isNaN(lon);
+  });
 
   return (
     <div className="h-[430px] w-full rounded-xl border border-slate-800 overflow-hidden shadow-2xl relative z-10">
+      {/* Floating Legend / Stats Badge */}
+      <div className="absolute top-3 right-3 z-[400] flex items-center gap-2 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-800 text-[11px] text-slate-300 shadow-lg pointer-events-none">
+        <span className="font-semibold text-emerald-400">{validJunctions.length} Junctions</span>
+        <span className="text-slate-600">•</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span>Optimal</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500"></span>Moderate</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500"></span>Congested</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-500"></span>BRTS</span>
+      </div>
+
       <MapContainer 
         center={suratCenter} 
         zoom={12} 
@@ -51,7 +70,7 @@ export default function LiveMap() {
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
         
-        {junctions.map((j) => {
+        {validJunctions.map((j) => {
           const lat = j.latitude !== undefined ? j.latitude : j.lat;
           const lon = j.longitude !== undefined ? j.longitude : j.lon;
           const theme = STATUS_THEMES[j.status] || STATUS_THEMES.normal;

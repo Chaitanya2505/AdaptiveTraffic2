@@ -6,6 +6,8 @@ import { BarChart3, TrendingUp, HelpCircle, HardHat, Map as MapIcon } from 'luci
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
+import { dummyJunctions } from '../dummyData/junctions';
+
 const mockTrendData = [
   { time: '08:00', volume: 850, queue: 15 },
   { time: '09:00', volume: 1450, queue: 45 },
@@ -29,17 +31,25 @@ const mockBottlenecks = [
 ];
 
 export default function AnalyticsPage() {
-  const [heatmapData, setHeatmapData] = useState([]);
+  const [heatmapData, setHeatmapData] = useState(() => 
+    dummyJunctions.map((j) => ({
+      id: j.id,
+      name: j.name,
+      lat: j.lat ?? j.latitude,
+      lng: j.lon ?? j.longitude,
+      intensity: j.status === 'critical' ? 0.9 : j.status === 'moderate' ? 0.6 : 0.35
+    }))
+  );
 
   useEffect(() => {
     fetch('http://localhost:8000/analytics/heatmap')
       .then(res => res.json())
       .then(data => {
-        if (data && data.data) {
+        if (data && data.data && data.data.length > 0) {
           setHeatmapData(data.data);
         }
       })
-      .catch(err => console.error("Error fetching heatmap:", err));
+      .catch(err => console.log("Using local junction heatmap telemetry data"));
   }, []);
 
   return (
@@ -57,8 +67,8 @@ export default function AnalyticsPage() {
             subtitle="Live hotspot intensity map computed from traffic junctions"
             action={<MapIcon className="h-5 w-5 text-emerald-400" />}
           >
-            <div className="h-96 w-full rounded-lg overflow-hidden border border-slate-800">
-              <MapContainer center={[21.1702, 72.8311]} zoom={12} style={{ height: '100%', width: '100%' }}>
+            <div className="h-96 w-full rounded-lg overflow-hidden border border-slate-800 relative">
+              <MapContainer center={[21.1800, 72.8250]} zoom={12} style={{ height: '100%', width: '100%' }}>
                 <TileLayer
                   url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                   attribution='&copy; <a href="https://carto.com/">CartoDB</a>'
@@ -67,13 +77,17 @@ export default function AnalyticsPage() {
                   <CircleMarker 
                     key={idx}
                     center={[pt.lat, pt.lng]} 
-                    radius={15 * (0.5 + pt.intensity)}
-                    fillColor="#ef4444"
-                    fillOpacity={pt.intensity * 0.8 + 0.2}
+                    radius={14 * (0.5 + (pt.intensity || 0.5))}
+                    fillColor={pt.intensity > 0.7 ? '#ef4444' : pt.intensity > 0.4 ? '#f59e0b' : '#10b981'}
+                    fillOpacity={(pt.intensity || 0.5) * 0.7 + 0.3}
                     stroke={false}
                   >
-                    <Popup className="text-slate-900 font-bold">
-                      Junction: {pt.id}<br/>Intensity: {(pt.intensity * 100).toFixed(0)}%
+                    <Popup className="custom-dark-popup">
+                      <div className="p-2 text-xs font-semibold text-white space-y-1">
+                        <p className="font-bold text-emerald-400">{pt.name || pt.id}</p>
+                        <p className="text-slate-300">Hotspot Intensity: {((pt.intensity || 0.5) * 100).toFixed(0)}%</p>
+                        <p className="text-[10px] text-slate-400">{Number(pt.lat).toFixed(4)}, {Number(pt.lng).toFixed(4)}</p>
+                      </div>
                     </Popup>
                   </CircleMarker>
                 ))}

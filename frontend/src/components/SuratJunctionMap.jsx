@@ -26,41 +26,47 @@ export const TYPE_COLORS = {
   entry_point: '#1abc9c',
 };
 
-// SVG Icon factory for Leaflet markers
+// SVG Icon factory for precision Leaflet markers
 const createCustomIcon = (type, isMajor, isSelected) => {
   const color = TYPE_COLORS[type] || '#3498db';
-  const size = isMajor ? 30 : 22;
+  const width = isMajor ? 32 : 26;
+  const height = isMajor ? 42 : 36;
   const pulseHtml = isMajor 
-    ? `<div class="absolute -inset-1 rounded-full animate-ping opacity-65 pointer-events-none" style="background-color: ${color};"></div>` 
+    ? `<div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-2 rounded-full animate-ping opacity-70 pointer-events-none" style="background-color: ${color};"></div>` 
     : '';
 
   return L.divIcon({
     className: 'custom-surat-marker',
     html: `
-      <div class="relative flex items-center justify-center transition-all duration-200 hover:scale-125 cursor-pointer ${isSelected ? 'scale-125 z-50' : ''}" style="width: ${size}px; height: ${size}px;">
+      <div class="relative flex items-center justify-center cursor-pointer transition-transform duration-200 hover:scale-125 ${isSelected ? 'scale-125 z-50' : ''}" style="width: ${width}px; height: ${height}px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.6));">
         ${pulseHtml}
-        <div class="relative flex items-center justify-center rounded-full shadow-md border-2 border-white dark:border-gray-900 transition-transform duration-200" style="background-color: ${color}; width: ${size}px; height: ${size}px;">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
-            <circle cx="12" cy="10" r="3"/>
-          </svg>
-        </div>
+        <svg width="${width}" height="${height}" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 1C7.71573 1 1 7.71573 1 16C1 27.5 16 41 16 41C16 41 31 27.5 31 16C31 7.71573 24.2843 1 16 1Z" fill="${color}" stroke="#ffffff" stroke-width="2"/>
+          <circle cx="16" cy="15" r="9" fill="#0f172a" stroke="#ffffff" stroke-width="1.5"/>
+          <circle cx="16" cy="15" r="4.5" fill="${color}"/>
+        </svg>
       </div>
     `,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    popupAnchor: [0, -size / 2],
+    iconSize: [width, height],
+    iconAnchor: [width / 2, height],
+    popupAnchor: [0, -height],
   });
 };
+
+
 
 // Component to handle map flyTo programmatically
 function MapController({ selectedJunction }) {
   const map = useMap();
   useEffect(() => {
     if (selectedJunction) {
-      map.flyTo([selectedJunction.lat, selectedJunction.lon], 15, {
-        duration: 1.2,
-      });
+      const lat = selectedJunction.lat ?? selectedJunction.latitude;
+      const lon = selectedJunction.lon ?? selectedJunction.longitude;
+      if (typeof lat === 'number' && typeof lon === 'number' && !isNaN(lat) && !isNaN(lon)) {
+        map.flyTo([lat, lon], 15, {
+          duration: 1.2,
+        });
+      }
     }
   }, [selectedJunction, map]);
   return null;
@@ -93,10 +99,21 @@ export default function SuratJunctionMap() {
     setError(null);
     try {
       const data = await getAllJunctions();
-      setJunctions(data);
+      const normalized = (data || []).map((j) => ({
+        ...j,
+        lat: j.lat ?? j.latitude,
+        lon: j.lon ?? j.longitude,
+        latitude: j.latitude ?? j.lat,
+        longitude: j.longitude ?? j.lon,
+        connecting_roads: j.connecting_roads || ['Connecting Link Road'],
+        area: j.area || `${j.name} Sector`,
+        slug: j.slug || j.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+        junction_type: j.junction_type || (j.has_brts ? 'transit' : 'commercial'),
+      }));
+      setJunctions(normalized);
     } catch (err) {
       console.error('Failed to fetch junctions:', err);
-      setError('Could not connect to backend API. Please make sure FastAPI is running.');
+      setError('Could not connect to backend API. Using local GIS data.');
     } finally {
       setLoading(false);
     }
@@ -111,11 +128,12 @@ export default function SuratJunctionMap() {
     return junctions.filter((j) => {
       const matchesType = activeFilter === 'ALL' || j.junction_type === activeFilter;
       const term = debouncedSearch.toLowerCase().trim();
+      const connectingRoads = j.connecting_roads || [];
       const matchesSearch = 
         !term || 
-        j.name.toLowerCase().includes(term) ||
-        j.area.toLowerCase().includes(term) ||
-        j.connecting_roads.some((road) => road.toLowerCase().includes(term));
+        (j.name && j.name.toLowerCase().includes(term)) ||
+        (j.area && j.area.toLowerCase().includes(term)) ||
+        connectingRoads.some((road) => road.toLowerCase().includes(term));
       return matchesType && matchesSearch;
     });
   }, [junctions, activeFilter, debouncedSearch]);
@@ -299,15 +317,22 @@ export default function SuratJunctionMap() {
             <MapController selectedJunction={selectedJunction} />
 
             <LayersControl position="topleft">
-              <BaseLayer checked name="CartoDB Positron">
+              <BaseLayer checked name="CartoDB Dark Matter">
                 <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a> | Surat Junction Map'
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                />
+              </BaseLayer>
+
+              <BaseLayer name="CartoDB Light Positron">
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                   url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
                 />
               </BaseLayer>
 
-              {/* Roads Overlay */}
-              <Overlay checked name="Roads">
+              {/* Schematic Road Lines Overlay (optional) */}
+              <Overlay name="Schematic Corridors">
                 <LayerGroup>
                   {roadPolylines.map((road) => (
                     <Polyline
@@ -330,100 +355,112 @@ export default function SuratJunctionMap() {
               {/* Major Junctions Only Overlay */}
               <Overlay name="Major Junctions Only">
                 <LayerGroup>
-                  {majorJunctions.map((j) => (
-                    <Marker
-                      key={`major-${j.id}`}
-                      position={[j.lat, j.lon]}
-                      icon={createCustomIcon(j.junction_type, true, selectedJunction?.id === j.id)}
-                    />
-                  ))}
+                  {majorJunctions.map((j) => {
+                    const lat = j.lat ?? j.latitude;
+                    const lon = j.lon ?? j.longitude;
+                    if (typeof lat !== 'number' || typeof lon !== 'number' || isNaN(lat) || isNaN(lon)) return null;
+                    return (
+                      <Marker
+                        key={`major-${j.id}`}
+                        position={[lat, lon]}
+                        icon={createCustomIcon(j.junction_type, true, selectedJunction?.id === j.id)}
+                      />
+                    );
+                  })}
                 </LayerGroup>
               </Overlay>
 
               {/* All Junctions Overlay */}
               <Overlay checked name="All Junctions">
                 <LayerGroup>
-                  {filteredJunctions.map((j) => (
-                    <Marker
-                      key={`all-${j.id}`}
-                      position={[j.lat, j.lon]}
-                      ref={(ref) => {
-                        markerRefs.current[j.id] = ref;
-                      }}
-                      icon={createCustomIcon(j.junction_type, j.is_major, selectedJunction?.id === j.id)}
-                      eventHandlers={{
-                        click: () => setSelectedJunction(j),
-                      }}
-                    >
-                      <Popup className="surat-junction-popup" autoPan>
-                        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-800 p-4 max-w-xs text-gray-900 dark:text-gray-100">
-                          <div className="flex items-center justify-between gap-2 mb-2">
-                            <span className="font-bold text-base tracking-tight text-gray-900 dark:text-white">
-                              {j.name}
-                            </span>
-                            {j.is_major && (
-                              <span className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">
-                                Major
+                  {filteredJunctions.map((j) => {
+                    const lat = j.lat ?? j.latitude;
+                    const lon = j.lon ?? j.longitude;
+                    if (typeof lat !== 'number' || typeof lon !== 'number' || isNaN(lat) || isNaN(lon)) return null;
+                    const connectingRoads = j.connecting_roads || [];
+
+                    return (
+                      <Marker
+                        key={`all-${j.id}`}
+                        position={[lat, lon]}
+                        ref={(ref) => {
+                          markerRefs.current[j.id] = ref;
+                        }}
+                        icon={createCustomIcon(j.junction_type, j.is_major, selectedJunction?.id === j.id)}
+                        eventHandlers={{
+                          click: () => setSelectedJunction(j),
+                        }}
+                      >
+                        <Popup className="surat-junction-popup" autoPan>
+                          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-800 p-4 max-w-xs text-gray-900 dark:text-gray-100">
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <span className="font-bold text-base tracking-tight text-gray-900 dark:text-white">
+                                {j.name}
                               </span>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-1.5 mb-2.5 flex-wrap">
-                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                              {j.area}
-                            </span>
-                            <span 
-                              className="px-2 py-0.5 rounded-full text-xs font-medium text-white capitalize"
-                              style={{ backgroundColor: TYPE_COLORS[j.junction_type] || '#3498db' }}
-                            >
-                              {j.junction_type.replace('_', ' ')}
-                            </span>
-                          </div>
-
-                          <p className="text-xs text-gray-600 dark:text-gray-400 mb-3 line-clamp-2 leading-relaxed">
-                            {j.description}
-                          </p>
-
-                          <div className="mb-3">
-                            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">
-                              Connecting Roads
-                            </span>
-                            <div className="flex flex-wrap gap-1">
-                              {j.connecting_roads.map((road) => (
-                                <span 
-                                  key={road} 
-                                  className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded text-[11px]"
-                                >
-                                  {road}
+                              {j.is_major && (
+                                <span className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">
+                                  Major
                                 </span>
-                              ))}
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1.5 mb-2.5 flex-wrap">
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                                {j.area}
+                              </span>
+                              <span 
+                                className="px-2 py-0.5 rounded-full text-xs font-medium text-white capitalize"
+                                style={{ backgroundColor: TYPE_COLORS[j.junction_type] || '#3498db' }}
+                              >
+                                {(j.junction_type || 'transit').replace('_', ' ')}
+                              </span>
+                            </div>
+
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-3 line-clamp-2 leading-relaxed">
+                              {j.description || 'Surat arterial traffic intersection.'}
+                            </p>
+
+                            <div className="mb-3">
+                              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">
+                                Connecting Roads
+                              </span>
+                              <div className="flex flex-wrap gap-1">
+                                {connectingRoads.map((road) => (
+                                  <span 
+                                    key={road} 
+                                    className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded text-[11px]"
+                                  >
+                                    {road}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => navigate(`/junctions/${j.slug}`)}
+                                className="flex-1 flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs py-2 px-2.5 rounded-lg transition-all shadow-sm"
+                              >
+                                <span>View Details</span>
+                                <ExternalLink className="h-3 w-3" />
+                              </button>
+                              <a
+                                href={`https://www.google.com/maps?q=${lat},${lon}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs py-2 px-2.5 rounded-lg transition-all shadow-sm"
+                                title="Open in Google Maps"
+                              >
+                                <span>Maps</span>
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
                             </div>
                           </div>
+                        </Popup>
 
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => navigate(`/junctions/${j.slug}`)}
-                              className="flex-1 flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs py-2 px-2.5 rounded-lg transition-all shadow-sm"
-                            >
-                              <span>View Details</span>
-                              <ExternalLink className="h-3 w-3" />
-                            </button>
-                            <a
-                              href={`https://www.google.com/maps?q=${j.lat},${j.lon}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs py-2 px-2.5 rounded-lg transition-all shadow-sm"
-                              title="Open in Google Maps"
-                            >
-                              <span>Maps</span>
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
-                          </div>
-                        </div>
-                      </Popup>
-
-                    </Marker>
-                  ))}
+                      </Marker>
+                    );
+                  })}
                 </LayerGroup>
               </Overlay>
             </LayersControl>
@@ -480,7 +517,7 @@ export default function SuratJunctionMap() {
                         </div>
                         <p className="text-[11px] text-slate-400 mt-0.5">{j.area}</p>
                         <div className="flex flex-wrap gap-1 mt-1.5">
-                          {j.connecting_roads.slice(0, 2).map((road) => (
+                          {(j.connecting_roads || []).slice(0, 2).map((road) => (
                             <span key={road} className="text-[9px] bg-slate-950 text-slate-400 px-1.5 py-0.5 rounded border border-slate-800">
                               {road}
                             </span>
