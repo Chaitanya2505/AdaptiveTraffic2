@@ -1,0 +1,556 @@
+{
+  "runId": "SIM_1786880935",
+  "generatedAt": "2026-08-16T11:50:32.435129+00:00",
+  "configuration": {
+    "scenarioName": "Adaptive Traffic Control",
+    "scenarioMode": "adaptive",
+    "demandLevel": "peak",
+    "spawnRate": 90.0,
+    "simulationDuration": 2.8,
+    "networkCorridor": "Surat Arterial Spine (SVNIT -> Ghod Dod -> Majura Gate -> Sahara Darwaja)"
+  },
+  "kpis": {
+    "totalSpawned": 3,
+    "completedVehicles": 0,
+    "throughputVph": 0.0,
+    "avgSpeedKmh": 8.8,
+    "avgWaitTimeSec": 0.0,
+    "totalWaitTimeSec": 0.0,
+    "avgTravelTimeSec": 1.3,
+    "maxTravelTimeSec": 2.1,
+    "avgQueueVehicles": 0.0,
+    "maxQueueVehicles": 0,
+    "congestionScore": 44.1,
+    "peakCongestion": 50.0,
+    "totalCO2Kg": 0.01,
+    "totalFuelLiters": 0.0,
+    "co2SavedKg": 0.0,
+    "fuelSavedLiters": 0.0
+  },
+  "junctions": {
+    "J_SVNIT": {
+      "id": "J_SVNIT",
+      "name": "SVNIT / Ichchhanath Circle",
+      "shortName": "SVNIT Circle",
+      "x": 250.0,
+      "y": 200.0,
+      "lat": 21.16779,
+      "lon": 72.785022,
+      "throughputVph": 1285.7,
+      "vehiclesPassed": 1,
+      "avgSpeedKmh": 1.4,
+      "avgDelaySec": 0.0,
+      "maxQueueVehicles": 1,
+      "haltingCount": 1,
+      "congestionScore": 48.6,
+      "levelOfService": "A",
+      "losDescription": "Free Flow / Minimal Delay",
+      "losColor": "#10b981",
+      "phaseSplit": {
+        "ewGreenPct": 100.0,
+        "nsGreenPct": 0.0,
+        "yellowPct": 0.0
+      },
+      "approaches": {
+        "NORTH": {
+          "vehiclesCount": 0,
+          "avgSpeedKmh": 1.4,
+          "avgDelaySec": 0.0,
+          "maxQueue": 0,
+          "haltingCount": 0
+        },
+        "SOUTH": {
+          "vehiclesCount": 0,
+          "avgSpeedKmh": 1.4,
+          "avgDelaySec": 0.0,
+          "maxQueue": 0,
+          "haltingCount": 0
+        },
+        "EAST": {
+          "vehiclesCount": 0,
+          "avgSpeedKmh": 1.4,
+          "avgDelaySec": 0.0,
+          "maxQueue": 0,
+          "haltingCount": 0
+        },
+        "WEST": {
+          "vehiclesCount": 1,
+          "avgSpeedKmh": 1.4,
+          "avgDelaySec": 0.0,
+          "maxQueue": 1,
+          "haltingCount": 1
+        }
+      },
+      "modalSplit": {
+        "car": 0.0,
+        "motorcycle": 0.0,
+        "brts_bus": 0.0,
+        "bus": 0.0,
+        "truck": 100.0
+      },
+      "whatIf": {
+        "baselineThroughput": 977.1,
+        "baselineDelay": 2.0,
+        "baselineSpeed": 1.0,
+        "baselineQueue": 1,
+        "throughputGainPct": 31.6,
+        "delayReductionPct": 100.0,
+        "speedIncreasePct": 40.0
+      }
+    },
+    "J_GHODDOD": {
+      "id": "J_GHODDOD",
+      "name": "Ghod Dod Road Commercial Cross",
+      "shortName": "Ghod Dod Cross",
+      "x": 600.0,
+      "y": 200.0,
+      "lat": 21.1754,
+      "lon": 72.8052,
+      "throughputVph": 0.0,
+      "vehiclesPassed": 0,
+      "avgSpeedKmh": 25.0,
+      "avgDelaySec": 0.0,
+      "maxQueueVehicles": 0,
+      "haltingCount": 0,
+      "congestionScore": 25.0,
+      "levelOfService": "A",
+      "losDescription": "Free Flow / Minimal Delay",
+      "losColor": "#10b981",
+      "phaseSplit": {
+        "ewGreenPct": 100.0,
+        "nsGreenPct": 0.0,
+        "yellowPct": 0.0
+      },
+      "approaches": {
+        "NORTH": {
+          "vehiclesCount": 0,
+          "avgSpeedKmh": 25.0,
+          "avgDelaySec": 0.0,
+          "maxQueue": 0,
+          "haltingCount": 0
+        },
+        "SOUTH": {
+          "vehiclesCount": 0,
+          "avgSpeedKmh": 25.0,
+          "avgDelaySec": 0.0,
+          "maxQueue": 0,
+          "haltingCount": 0
+        },
+        "EAST": {
+          "vehiclesCount": 0,
+          "avgSpeedKmh": 25.0,
+          "avgDelaySec": 0.0,
+          "maxQueue": 0,
+          "haltingCount": 0
+        },
+        "WEST": {
+          "vehiclesCount": 0,
+          "avgSpeedKmh": 25.0,
+          "avgDelaySec": 0.0,
+          "maxQueue": 0,
+          "haltingCount": 0
+        }
+      },
+      "modalSplit": {
+        "car": 0.0,
+        "motorcycle": 0.0,
+        "brts_bus": 0.0,
+        "bus": 0.0,
+        "truck": 0.0
+      },
+      "whatIf": {
+        "baselineThroughput": 0.0,
+        "baselineDelay": 2.0,
+        "baselineSpeed": 18.0,
+        "baselineQueue": 1,
+        "throughputGainPct": 0.0,
+        "delayReductionPct": 100.0,
+        "speedIncreasePct": 38.9
+      }
+    },
+    "J_MAJURA": {
+      "id": "J_MAJURA",
+      "name": "Majura Gate BRTS Multi-Leg Hub",
+      "shortName": "Majura Gate",
+      "x": 950.0,
+      "y": 200.0,
+      "lat": 21.18245,
+      "lon": 72.8232,
+      "throughputVph": 0.0,
+      "vehiclesPassed": 0,
+      "avgSpeedKmh": 25.0,
+      "avgDelaySec": 0.0,
+      "maxQueueVehicles": 0,
+      "haltingCount": 0,
+      "congestionScore": 25.0,
+      "levelOfService": "A",
+      "losDescription": "Free Flow / Minimal Delay",
+      "losColor": "#10b981",
+      "phaseSplit": {
+        "ewGreenPct": 100.0,
+        "nsGreenPct": 0.0,
+        "yellowPct": 0.0
+      },
+      "approaches": {
+        "NORTH": {
+          "vehiclesCount": 0,
+          "avgSpeedKmh": 25.0,
+          "avgDelaySec": 0.0,
+          "maxQueue": 0,
+          "haltingCount": 0
+        },
+        "SOUTH": {
+          "vehiclesCount": 0,
+          "avgSpeedKmh": 25.0,
+          "avgDelaySec": 0.0,
+          "maxQueue": 0,
+          "haltingCount": 0
+        },
+        "EAST": {
+          "vehiclesCount": 0,
+          "avgSpeedKmh": 25.0,
+          "avgDelaySec": 0.0,
+          "maxQueue": 0,
+          "haltingCount": 0
+        },
+        "WEST": {
+          "vehiclesCount": 0,
+          "avgSpeedKmh": 25.0,
+          "avgDelaySec": 0.0,
+          "maxQueue": 0,
+          "haltingCount": 0
+        }
+      },
+      "modalSplit": {
+        "car": 0.0,
+        "motorcycle": 0.0,
+        "brts_bus": 0.0,
+        "bus": 0.0,
+        "truck": 0.0
+      },
+      "whatIf": {
+        "baselineThroughput": 0.0,
+        "baselineDelay": 2.0,
+        "baselineSpeed": 18.0,
+        "baselineQueue": 1,
+        "throughputGainPct": 0.0,
+        "delayReductionPct": 100.0,
+        "speedIncreasePct": 38.9
+      }
+    },
+    "J_SAHARA": {
+      "id": "J_SAHARA",
+      "name": "Sahara Darwaja Railway Flyover",
+      "shortName": "Sahara Darwaja",
+      "x": 1300.0,
+      "y": 200.0,
+      "lat": 21.1966,
+      "lon": 72.8465,
+      "throughputVph": 2571.4,
+      "vehiclesPassed": 2,
+      "avgSpeedKmh": 8.6,
+      "avgDelaySec": 0.0,
+      "maxQueueVehicles": 1,
+      "haltingCount": 2,
+      "congestionScore": 41.4,
+      "levelOfService": "A",
+      "losDescription": "Free Flow / Minimal Delay",
+      "losColor": "#10b981",
+      "phaseSplit": {
+        "ewGreenPct": 100.0,
+        "nsGreenPct": 0.0,
+        "yellowPct": 0.0
+      },
+      "approaches": {
+        "NORTH": {
+          "vehiclesCount": 0,
+          "avgSpeedKmh": 8.6,
+          "avgDelaySec": 0.0,
+          "maxQueue": 0,
+          "haltingCount": 0
+        },
+        "SOUTH": {
+          "vehiclesCount": 0,
+          "avgSpeedKmh": 8.6,
+          "avgDelaySec": 0.0,
+          "maxQueue": 0,
+          "haltingCount": 0
+        },
+        "EAST": {
+          "vehiclesCount": 2,
+          "avgSpeedKmh": 8.6,
+          "avgDelaySec": 0.0,
+          "maxQueue": 1,
+          "haltingCount": 2
+        },
+        "WEST": {
+          "vehiclesCount": 0,
+          "avgSpeedKmh": 8.6,
+          "avgDelaySec": 0.0,
+          "maxQueue": 0,
+          "haltingCount": 0
+        }
+      },
+      "modalSplit": {
+        "car": 0.0,
+        "motorcycle": 75.9,
+        "brts_bus": 24.1,
+        "bus": 0.0,
+        "truck": 0.0
+      },
+      "whatIf": {
+        "baselineThroughput": 1954.3,
+        "baselineDelay": 2.0,
+        "baselineSpeed": 6.2,
+        "baselineQueue": 1,
+        "throughputGainPct": 31.6,
+        "delayReductionPct": 100.0,
+        "speedIncreasePct": 38.7
+      }
+    }
+  },
+  "trends": [
+    {
+      "time": 1.0,
+      "label": "00:01",
+      "activeVehicles": 0,
+      "completedVehicles": 0,
+      "avgSpeed": 0.0,
+      "totalWaitTime": 0.0,
+      "avgWaitTime": 0.0,
+      "totalQueue": 0,
+      "maxQueue": 0,
+      "congestionIndex": 50.0,
+      "co2AccumulatedKg": 0.0,
+      "fuelAccumulatedLiters": 0.0
+    },
+    {
+      "time": 2.0,
+      "label": "00:02",
+      "activeVehicles": 1,
+      "completedVehicles": 0,
+      "avgSpeed": 9.9,
+      "totalWaitTime": 0.0,
+      "avgWaitTime": 0.0,
+      "totalQueue": 0,
+      "maxQueue": 0,
+      "congestionIndex": 40.1,
+      "co2AccumulatedKg": 0.0,
+      "fuelAccumulatedLiters": 0.0
+    },
+    {
+      "time": 3.0,
+      "label": "00:03",
+      "activeVehicles": 3,
+      "completedVehicles": 0,
+      "avgSpeed": 7.7,
+      "totalWaitTime": 0.0,
+      "avgWaitTime": 0.0,
+      "totalQueue": 0,
+      "maxQueue": 0,
+      "congestionIndex": 42.3,
+      "co2AccumulatedKg": 0.01,
+      "fuelAccumulatedLiters": 0.0
+    }
+  ],
+  "bottlenecks": [
+    {
+      "id": "J_SVNIT",
+      "location": "SVNIT / Ichchhanath Circle",
+      "score": 48.5,
+      "avgSpeedKmh": 1.4,
+      "avgDelay": "0.0s",
+      "severity": "High",
+      "primaryFactor": "University access lane inflow friction (Speed drop to 1.4 km/h)",
+      "rank": 1
+    },
+    {
+      "id": "J_SAHARA",
+      "location": "Sahara Darwaja Railway Flyover",
+      "score": 40.5,
+      "avgSpeedKmh": 8.6,
+      "avgDelay": "0.0s",
+      "severity": "High",
+      "primaryFactor": "Railway flyover merge bottleneck & high inbound volume (Avg speed: 8.6 km/h)",
+      "rank": 2
+    },
+    {
+      "id": "J_GHODDOD",
+      "location": "Ghod Dod Road Commercial Cross",
+      "score": 22.2,
+      "avgSpeedKmh": 25.0,
+      "avgDelay": "0.0s",
+      "severity": "Moderate",
+      "primaryFactor": "Commercial corridor approach queue buildup (Cumulative wait: 0s)",
+      "rank": 3
+    },
+    {
+      "id": "J_MAJURA",
+      "location": "Majura Gate BRTS Multi-Leg Hub",
+      "score": 22.2,
+      "avgSpeedKmh": 25.0,
+      "avgDelay": "0.0s",
+      "severity": "Moderate",
+      "primaryFactor": "Multi-leg feeder cross flow conflict (Recorded 0 halting events, 0.0s delay)",
+      "rank": 4
+    }
+  ],
+  "recommendations": [
+    {
+      "id": "REC-01",
+      "category": "Signal Progression",
+      "title": "Calibrate Green Wave Progression Offset (12.5s Sync)",
+      "description": "Corridor average speed is 8.8 km/h. Synchronizing East-West progression offsets along SVNIT -> Sahara at 12.5s intervals will eliminate stop delays by ~32%.",
+      "impact": "High",
+      "targetLocation": "Corridor Spine (SVNIT to Sahara Darwaja)"
+    },
+    {
+      "id": "REC-02",
+      "category": "Adaptive Timing",
+      "title": "Dynamic Phase Split Extension at SVNIT / Ichchhanath Circle",
+      "description": "Top bottleneck score reached 48.5/100 with 0.0s average delay. Extend maximum green split from 50s to 60s for dominant approach.",
+      "impact": "Critical",
+      "targetLocation": "SVNIT / Ichchhanath Circle"
+    }
+  ],
+  "whatIfComparison": {
+    "baseline": {
+      "name": "Traditional Fixed-Time (60s Pre-timed)",
+      "throughput": 0.0,
+      "completedVehicles": 0,
+      "avgSpeed": 6.3,
+      "avgWait": 0.0,
+      "maxQueue": 1,
+      "totalCO2Kg": 0.01,
+      "totalFuelLiters": 0.0
+    },
+    "optimized": {
+      "name": "Adaptive Traffic Control (Queue-Pressure)",
+      "throughput": 0.0,
+      "completedVehicles": 0,
+      "avgSpeed": 8.8,
+      "avgWait": 0.0,
+      "maxQueue": 0,
+      "totalCO2Kg": 0.01,
+      "totalFuelLiters": 0.0
+    },
+    "improvements": {
+      "throughputGainPct": 0.0,
+      "speedIncreasePct": 39.7,
+      "waitReductionPct": 0.0,
+      "queueReductionPct": 100.0,
+      "co2SavedKg": 0.0,
+      "fuelSavedLiters": 0.0,
+      "co2ReductionPct": 0.0,
+      "fuelReductionPct": 0.0
+    },
+    "junctionComparisons": [
+      {
+        "junctionId": "J_SVNIT",
+        "junctionName": "SVNIT / Ichchhanath Circle",
+        "shortName": "SVNIT Circle",
+        "levelOfService": "A",
+        "baselineThroughput": 977.1,
+        "optimizedThroughput": 1285.7,
+        "throughputGainPct": 31.6,
+        "baselineDelay": 2.0,
+        "optimizedDelay": 0.0,
+        "delayReductionPct": 100.0,
+        "baselineSpeed": 1.0,
+        "optimizedSpeed": 1.4,
+        "speedIncreasePct": 40.0
+      },
+      {
+        "junctionId": "J_GHODDOD",
+        "junctionName": "Ghod Dod Road Commercial Cross",
+        "shortName": "Ghod Dod Cross",
+        "levelOfService": "A",
+        "baselineThroughput": 0.0,
+        "optimizedThroughput": 0.0,
+        "throughputGainPct": 0.0,
+        "baselineDelay": 2.0,
+        "optimizedDelay": 0.0,
+        "delayReductionPct": 100.0,
+        "baselineSpeed": 18.0,
+        "optimizedSpeed": 25.0,
+        "speedIncreasePct": 38.9
+      },
+      {
+        "junctionId": "J_MAJURA",
+        "junctionName": "Majura Gate BRTS Multi-Leg Hub",
+        "shortName": "Majura Gate",
+        "levelOfService": "A",
+        "baselineThroughput": 0.0,
+        "optimizedThroughput": 0.0,
+        "throughputGainPct": 0.0,
+        "baselineDelay": 2.0,
+        "optimizedDelay": 0.0,
+        "delayReductionPct": 100.0,
+        "baselineSpeed": 18.0,
+        "optimizedSpeed": 25.0,
+        "speedIncreasePct": 38.9
+      },
+      {
+        "junctionId": "J_SAHARA",
+        "junctionName": "Sahara Darwaja Railway Flyover",
+        "shortName": "Sahara Darwaja",
+        "levelOfService": "A",
+        "baselineThroughput": 1954.3,
+        "optimizedThroughput": 2571.4,
+        "throughputGainPct": 31.6,
+        "baselineDelay": 2.0,
+        "optimizedDelay": 0.0,
+        "delayReductionPct": 100.0,
+        "baselineSpeed": 6.2,
+        "optimizedSpeed": 8.6,
+        "speedIncreasePct": 38.7
+      }
+    ]
+  },
+  "spatialHeatmaps": {
+    "nodes": [
+      {
+        "id": "J_SVNIT",
+        "name": "SVNIT / Ichchhanath Circle",
+        "shortName": "SVNIT Circle",
+        "lat": 21.16779,
+        "lng": 72.785022,
+        "densityIntensity": 1.0,
+        "queueIntensity": 0.9,
+        "waitIntensity": 1.1
+      },
+      {
+        "id": "J_GHODDOD",
+        "name": "Ghod Dod Road Commercial Cross",
+        "shortName": "Ghod Dod Cross",
+        "lat": 21.1754,
+        "lng": 72.8052,
+        "densityIntensity": 0.57,
+        "queueIntensity": 0.51,
+        "waitIntensity": 0.63
+      },
+      {
+        "id": "J_MAJURA",
+        "name": "Majura Gate BRTS Multi-Leg Hub",
+        "shortName": "Majura Gate",
+        "lat": 21.18245,
+        "lng": 72.8232,
+        "densityIntensity": 0.57,
+        "queueIntensity": 0.51,
+        "waitIntensity": 0.63
+      },
+      {
+        "id": "J_SAHARA",
+        "name": "Sahara Darwaja Railway Flyover",
+        "shortName": "Sahara Darwaja",
+        "lat": 21.1966,
+        "lng": 72.8465,
+        "densityIntensity": 1.0,
+        "queueIntensity": 0.9,
+        "waitIntensity": 1.1
+      }
+    ],
+    "corridorLengthKm": 3.8,
+    "totalSamplesCollected": 4
+  }
+}
