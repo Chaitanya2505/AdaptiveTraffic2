@@ -1,0 +1,154 @@
+{
+  "runId": "SIM_1786857280",
+  "generatedAt": "2026-08-16T05:16:01.302920+00:00",
+  "configuration": {
+    "scenarioName": "Adaptive Traffic + BRTS Protection",
+    "scenarioMode": "adaptive_brts",
+    "demandLevel": "peak",
+    "spawnRate": 60.0,
+    "simulationDuration": 300.0,
+    "networkCorridor": "Surat Arterial Spine (SVNIT -> Ghod Dod -> Majura Gate -> Sahara Darwaja)"
+  },
+  "kpis": {
+    "totalSpawned": 0,
+    "completedVehicles": 0,
+    "throughputVph": 0.0,
+    "avgSpeedKmh": 0.0,
+    "avgWaitTimeSec": 0.0,
+    "totalWaitTimeSec": 0.0,
+    "avgTravelTimeSec": 135.0,
+    "maxTravelTimeSec": 216.0,
+    "avgQueueVehicles": 0.0,
+    "maxQueueVehicles": 0,
+    "congestionScore": 0.0,
+    "peakCongestion": 0.0,
+    "totalBrtsIntrusions": 0,
+    "avgIntrusionDurationSec": 0.0
+  },
+  "trends": [],
+  "bottlenecks": [
+    {
+      "id": "J_MAJURA",
+      "location": "Majura Gate BRTS Multi-Leg Hub",
+      "score": 100.0,
+      "avgDelay": "52.8s",
+      "severity": "Critical",
+      "primaryFactor": "High cross-turning volume & BRTS lane friction",
+      "rank": 1
+    },
+    {
+      "id": "J_SAHARA",
+      "location": "Sahara Darwaja Railway Flyover",
+      "score": 100.0,
+      "avgDelay": "64.1s",
+      "severity": "Critical",
+      "primaryFactor": "High cross-turning volume & BRTS lane friction",
+      "rank": 2
+    },
+    {
+      "id": "J_GHODDOD",
+      "location": "Ghod Dod Road Commercial Cross",
+      "score": 90.0,
+      "avgDelay": "38.2s",
+      "severity": "Critical",
+      "primaryFactor": "Commercial curb friction",
+      "rank": 3
+    },
+    {
+      "id": "J_SVNIT",
+      "location": "SVNIT / Ichchhanath Circle",
+      "score": 50.0,
+      "avgDelay": "24.5s",
+      "severity": "High",
+      "primaryFactor": "Commercial curb friction",
+      "rank": 4
+    }
+  ],
+  "recommendations": [
+    {
+      "id": "REC-01",
+      "category": "Signal Timing",
+      "title": "Optimize Arterial Progression Offset (Green Wave)",
+      "description": "Progressive green signal offset along J_SVNIT -> J_MAJURA at 45 km/h progression speed to reduce corridor stop delay by ~32%.",
+      "impact": "High",
+      "targetLocation": "Corridor Spine (J_SVNIT to J_SAHARA)"
+    },
+    {
+      "id": "REC-04",
+      "category": "Lane Management",
+      "title": "Designate Dedicated Right-Turn Slip Lane on Lane 2",
+      "description": "Right-turning traffic blocks through-movements during peak hours. Dedicated slip lane will decouple straight-line throughput.",
+      "impact": "Moderate",
+      "targetLocation": "J_SAHARA Railway Station Approach"
+    }
+  ],
+  "whatIfComparison": {
+    "baseline": {
+      "name": "Fixed-Time Uncoordinated",
+      "throughput": 0.0,
+      "avgSpeed": 0.0,
+      "avgWait": 0.0,
+      "maxQueue": 0
+    },
+    "optimized": {
+      "name": "Adaptive Traffic + BRTS Protection",
+      "throughput": 0.0,
+      "avgSpeed": 0.0,
+      "avgWait": 0.0,
+      "maxQueue": 0
+    },
+    "improvements": {
+      "throughputGainPct": 0.0,
+      "speedIncreasePct": 0.0,
+      "waitReductionPct": 0.0,
+      "queueReductionPct": 0.0
+    }
+  },
+  "spatialHeatmaps": {
+    "nodes": [
+      {
+        "id": "J_SVNIT",
+        "name": "SVNIT Ichchhanath",
+        "lat": 21.16779,
+        "lng": 72.785022,
+        "densityIntensity": 0.6000000000000001,
+        "queueIntensity": 0.36000000000000004,
+        "waitIntensity": 0.44000000000000006,
+        "brtsViolationsIntensity": 0.3
+      },
+      {
+        "id": "J_GHODDOD",
+        "name": "Ghod Dod Road",
+        "lat": 21.1754,
+        "lng": 72.8052,
+        "densityIntensity": 0.8999999999999999,
+        "queueIntensity": 0.54,
+        "waitIntensity": 0.66,
+        "brtsViolationsIntensity": 0.9
+      },
+      {
+        "id": "J_MAJURA",
+        "name": "Majura Gate BRTS Hub",
+        "lat": 21.18245,
+        "lng": 72.8232,
+        "densityIntensity": 1.0,
+        "queueIntensity": 0.765,
+        "waitIntensity": 0.935,
+        "brtsViolationsIntensity": 0.9
+      },
+      {
+        "id": "J_SAHARA",
+        "name": "Sahara Darwaja Flyover",
+        "lat": 21.1966,
+        "lng": 72.8465,
+        "densityIntensity": 1.0,
+        "queueIntensity": 0.855,
+        "waitIntensity": 1.0,
+        "brtsViolationsIntensity": 0.3
+      }
+    ],
+    "corridorLengthKm": 3.8,
+    "totalSamplesCollected": 0
+  },
+  "brtsViolationsLog": []
+}

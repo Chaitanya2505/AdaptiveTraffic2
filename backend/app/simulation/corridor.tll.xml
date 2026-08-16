@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tlLogics xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/tllogic_file.xsd">
+    <tlLogic id="J_SVNIT" type="static" programID="0" offset="0">
+        <phase duration="30" state="GGggrrrrGGggrrrr"/>
+        <phase duration="4"  state="yyyyrrrryyyyrrrr"/>
+        <phase duration="2"  state="rrrrrrrrrrrrrrrr"/>
+        <phase duration="25" state="rrrrGGggrrrrGGgg"/>
+        <phase duration="4"  state="rrrryyyyrrrryyyy"/>
+        <phase duration="2"  state="rrrrrrrrrrrrrrrr"/>
+    </tlLogic>
+    <tlLogic id="J_GHODDOD" type="static" programID="0" offset="0">
+        <phase duration="30" state="GGggrrrrGGggrrrr"/>
+        <phase duration="4"  state="yyyyrrrryyyyrrrr"/>
+        <phase duration="2"  state="rrrrrrrrrrrrrrrr"/>
+        <phase duration="25" state="rrrrGGggrrrrGGgg"/>
+        <phase duration="4"  state="rrrryyyyrrrryyyy"/>
+        <phase duration="2"  state="rrrrrrrrrrrrrrrr"/>
+    </tlLogic>
+    <tlLogic id="J_MAJURA" type="static" programID="0" offset="0">
+        <phase duration="30" state="GGggrrrrGGggrrrr"/>
+        <phase duration="4"  state="yyyyrrrryyyyrrrr"/>
+        <phase duration="2"  state="rrrrrrrrrrrrrrrr"/>
+        <phase duration="25" state="rrrrGGggrrrrGGgg"/>
+        <phase duration="4"  state="rrrryyyyrrrryyyy"/>
+        <phase duration="2"  state="rrrrrrrrrrrrrrrr"/>
+    </tlLogic>
+    <tlLogic id="J_SAHARA" type="static" programID="0" offset="0">
+        <phase duration="30" state="GGggrrrrGGggrrrr"/>
+        <phase duration="4"  state="yyyyrrrryyyyrrrr"/>
+        <phase duration="2"  state="rrrrrrrrrrrrrrrr"/>
+        <phase duration="25" state="rrrrGGggrrrrGGgg"/>
+        <phase duration="4"  state="rrrryyyyrrrryyyy"/>
+        <phase duration="2"  state="rrrrrrrrrrrrrrrr"/>
+    </tlLogic>
+</tlLogics>

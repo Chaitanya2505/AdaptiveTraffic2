@@ -1,0 +1,513 @@
+{
+  "runId": "SIM_1786857656",
+  "generatedAt": "2026-08-16T05:21:41.038779+00:00",
+  "configuration": {
+    "scenarioName": "Adaptive Traffic Control",
+    "scenarioMode": "adaptive",
+    "demandLevel": "peak",
+    "spawnRate": 90.0,
+    "simulationDuration": 12.8,
+    "networkCorridor": "Surat Arterial Spine (SVNIT -> Ghod Dod -> Majura Gate -> Sahara Darwaja)"
+  },
+  "kpis": {
+    "totalSpawned": 48,
+    "completedVehicles": 0,
+    "throughputVph": 0.0,
+    "avgSpeedKmh": 33.2,
+    "avgWaitTimeSec": 0.0,
+    "totalWaitTimeSec": 0.0,
+    "avgTravelTimeSec": 5.8,
+    "maxTravelTimeSec": 9.3,
+    "avgQueueVehicles": 0.0,
+    "maxQueueVehicles": 0,
+    "congestionScore": 16.9,
+    "peakCongestion": 16.9,
+    "totalBrtsIntrusions": 28,
+    "avgIntrusionDurationSec": 0.2
+  },
+  "trends": [
+    {
+      "time": 13.0,
+      "label": "00:13",
+      "activeVehicles": 20,
+      "completedVehicles": 0,
+      "avgSpeed": 33.2,
+      "totalWaitTime": 0.0,
+      "avgWaitTime": 0.0,
+      "totalQueue": 0,
+      "maxQueue": 0,
+      "congestionIndex": 16.9,
+      "brtsViolationsCount": 9
+    }
+  ],
+  "bottlenecks": [
+    {
+      "id": "J_MAJURA",
+      "location": "Majura Gate BRTS Multi-Leg Hub",
+      "score": 100.0,
+      "avgDelay": "52.8s",
+      "severity": "Critical",
+      "primaryFactor": "High cross-turning volume & BRTS lane friction",
+      "rank": 1
+    },
+    {
+      "id": "J_SAHARA",
+      "location": "Sahara Darwaja Railway Flyover",
+      "score": 100.0,
+      "avgDelay": "64.1s",
+      "severity": "Critical",
+      "primaryFactor": "High cross-turning volume & BRTS lane friction",
+      "rank": 2
+    },
+    {
+      "id": "J_GHODDOD",
+      "location": "Ghod Dod Road Commercial Cross",
+      "score": 90.0,
+      "avgDelay": "38.2s",
+      "severity": "Critical",
+      "primaryFactor": "Commercial curb friction",
+      "rank": 3
+    },
+    {
+      "id": "J_SVNIT",
+      "location": "SVNIT / Ichchhanath Circle",
+      "score": 50.0,
+      "avgDelay": "24.5s",
+      "severity": "High",
+      "primaryFactor": "Commercial curb friction",
+      "rank": 4
+    }
+  ],
+  "recommendations": [
+    {
+      "id": "REC-01",
+      "category": "Signal Timing",
+      "title": "Optimize Arterial Progression Offset (Green Wave)",
+      "description": "Progressive green signal offset along J_SVNIT -> J_MAJURA at 45 km/h progression speed to reduce corridor stop delay by ~32%.",
+      "impact": "High",
+      "targetLocation": "Corridor Spine (J_SVNIT to J_SAHARA)"
+    },
+    {
+      "id": "REC-02",
+      "category": "Corridor Infrastructure",
+      "title": "Install Continuous Median Delineators on BRTS Lane L0",
+      "description": "Detected 28 illegal mixed vehicle intrusions along BRTS lane L0. Physical flexible bollards recommended to protect rapid transit speed.",
+      "impact": "Critical",
+      "targetLocation": "J_MAJURA and J_GHODDOD BRTS Approaches"
+    },
+    {
+      "id": "REC-04",
+      "category": "Lane Management",
+      "title": "Designate Dedicated Right-Turn Slip Lane on Lane 2",
+      "description": "Right-turning traffic blocks through-movements during peak hours. Dedicated slip lane will decouple straight-line throughput.",
+      "impact": "Moderate",
+      "targetLocation": "J_SAHARA Railway Station Approach"
+    }
+  ],
+  "whatIfComparison": {
+    "baseline": {
+      "name": "Fixed-Time Uncoordinated",
+      "throughput": 0.0,
+      "avgSpeed": 23.9,
+      "avgWait": 0.0,
+      "maxQueue": 0
+    },
+    "optimized": {
+      "name": "Adaptive Traffic Control",
+      "throughput": 0.0,
+      "avgSpeed": 33.2,
+      "avgWait": 0.0,
+      "maxQueue": 0
+    },
+    "improvements": {
+      "throughputGainPct": 0.0,
+      "speedIncreasePct": 38.9,
+      "waitReductionPct": 0.0,
+      "queueReductionPct": 0.0
+    }
+  },
+  "spatialHeatmaps": {
+    "nodes": [
+      {
+        "id": "J_SVNIT",
+        "name": "SVNIT Ichchhanath",
+        "lat": 21.16779,
+        "lng": 72.785022,
+        "densityIntensity": 0.9,
+        "queueIntensity": 0.36000000000000004,
+        "waitIntensity": 0.44000000000000006,
+        "brtsViolationsIntensity": 0.3
+      },
+      {
+        "id": "J_GHODDOD",
+        "name": "Ghod Dod Road",
+        "lat": 21.1754,
+        "lng": 72.8052,
+        "densityIntensity": 1.0,
+        "queueIntensity": 0.54,
+        "waitIntensity": 0.66,
+        "brtsViolationsIntensity": 0.9
+      },
+      {
+        "id": "J_MAJURA",
+        "name": "Majura Gate BRTS Hub",
+        "lat": 21.18245,
+        "lng": 72.8232,
+        "densityIntensity": 1.0,
+        "queueIntensity": 0.765,
+        "waitIntensity": 0.935,
+        "brtsViolationsIntensity": 0.9
+      },
+      {
+        "id": "J_SAHARA",
+        "name": "Sahara Darwaja Flyover",
+        "lat": 21.1966,
+        "lng": 72.8465,
+        "densityIntensity": 1.0,
+        "queueIntensity": 0.855,
+        "waitIntensity": 1.0,
+        "brtsViolationsIntensity": 0.3
+      }
+    ],
+    "corridorLengthKm": 3.8,
+    "totalSamplesCollected": 20
+  },
+  "brtsViolationsLog": [
+    {
+      "id": "INT_0_veh_1",
+      "timestamp": 0.2,
+      "vehicleId": "veh_1",
+      "vehicleType": "car",
+      "laneId": "S_TO_SVNIT_0",
+      "junctionId": "J_SVNIT",
+      "x": 254.8,
+      "y": 4.8999999999999995,
+      "duration": 0.5,
+      "status": "Active"
+    },
+    {
+      "id": "INT_6_veh_10",
+      "timestamp": 6.8,
+      "vehicleId": "veh_10",
+      "vehicleType": "motorcycle",
+      "laneId": "S_TO_GHODDOD_0",
+      "junctionId": "J_GHODDOD",
+      "x": 604.8,
+      "y": 2.49879991975783,
+      "duration": 0.30000000000000004,
+      "status": "Resolved"
+    },
+    {
+      "id": "INT_6_veh_2",
+      "timestamp": 6.8,
+      "vehicleId": "veh_2",
+      "vehicleType": "motorcycle",
+      "laneId": "S_TO_SAHARA_0",
+      "junctionId": "J_SAHARA",
+      "x": 1304.8,
+      "y": 51.093893106470894,
+      "duration": 0.4,
+      "status": "Active"
+    },
+    {
+      "id": "INT_6_veh_4",
+      "timestamp": 6.8,
+      "vehicleId": "veh_4",
+      "vehicleType": "car",
+      "laneId": "N_TO_GHODDOD_0",
+      "junctionId": "J_GHODDOD",
+      "x": 595.2,
+      "y": 378.00469732229965,
+      "duration": 0.2,
+      "status": "Resolved"
+    },
+    {
+      "id": "INT_6_veh_7",
+      "timestamp": 6.8,
+      "vehicleId": "veh_7",
+      "vehicleType": "car",
+      "laneId": "S_TO_MAJURA_0",
+      "junctionId": "J_MAJURA",
+      "x": 954.8,
+      "y": 8.552748469074768,
+      "duration": 0.1,
+      "status": "Resolved"
+    },
+    {
+      "id": "INT_6_veh_9",
+      "timestamp": 6.8,
+      "vehicleId": "veh_9",
+      "vehicleType": "motorcycle",
+      "laneId": "S_TO_MAJURA_0",
+      "junctionId": "J_MAJURA",
+      "x": 954.8,
+      "y": 2.3000000000000003,
+      "duration": 0.1,
+      "status": "Resolved"
+    },
+    {
+      "id": "INT_13_veh_12",
+      "timestamp": 13.0,
+      "vehicleId": "veh_12",
+      "vehicleType": "car",
+      "laneId": "N_TO_MAJURA_0",
+      "junctionId": "J_MAJURA",
+      "x": 945.2,
+      "y": 368.0160503640892,
+      "duration": 0.30000000000000004,
+      "status": "Active"
+    },
+    {
+      "id": "INT_13_veh_13",
+      "timestamp": 13.0,
+      "vehicleId": "veh_13",
+      "vehicleType": "car",
+      "laneId": "N_TO_SAHARA_0",
+      "junctionId": "J_SAHARA",
+      "x": 1295.2,
+      "y": 371.9679983370174,
+      "duration": 0.30000000000000004,
+      "status": "Active"
+    },
+    {
+      "id": "INT_13_veh_18",
+      "timestamp": 13.0,
+      "vehicleId": "veh_18",
+      "vehicleType": "car",
+      "laneId": "N_TO_SAHARA_0",
+      "junctionId": "J_SAHARA",
+      "x": 1295.2,
+      "y": 392.60971501676516,
+      "duration": 0.30000000000000004,
+      "status": "Active"
+    },
+    {
+      "id": "INT_13_veh_19",
+      "timestamp": 13.0,
+      "vehicleId": "veh_19",
+      "vehicleType": "car",
+      "laneId": "S_TO_GHODDOD_0",
+      "junctionId": "J_GHODDOD",
+      "x": 604.8,
+      "y": 6.836770992231068,
+      "duration": 0.30000000000000004,
+      "status": "Active"
+    },
+    {
+      "id": "INT_13_veh_20",
+      "timestamp": 13.0,
+      "vehicleId": "veh_20",
+      "vehicleType": "car",
+      "laneId": "N_TO_SVNIT_0",
+      "junctionId": "J_SVNIT",
+      "x": 245.2,
+      "y": 393.69497695342756,
+      "duration": 0.30000000000000004,
+      "status": "Active"
+    },
+    {
+      "id": "INT_19_veh_22",
+      "timestamp": 19.5,
+      "vehicleId": "veh_22",
+      "vehicleType": "car",
+      "laneId": "N_TO_SVNIT_0",
+      "junctionId": "J_SVNIT",
+      "x": 245.2,
+      "y": 365.1221052035685,
+      "duration": 0.2,
+      "status": "Active"
+    },
+    {
+      "id": "INT_19_veh_23",
+      "timestamp": 19.5,
+      "vehicleId": "veh_23",
+      "vehicleType": "car",
+      "laneId": "S_TO_GHODDOD_0",
+      "junctionId": "J_GHODDOD",
+      "x": 604.8,
+      "y": 36.11173597089049,
+      "duration": 0.2,
+      "status": "Active"
+    },
+    {
+      "id": "INT_19_veh_25",
+      "timestamp": 19.5,
+      "vehicleId": "veh_25",
+      "vehicleType": "car",
+      "laneId": "N_TO_GHODDOD_0",
+      "junctionId": "J_GHODDOD",
+      "x": 595.2,
+      "y": 370.0730074978744,
+      "duration": 0.2,
+      "status": "Active"
+    },
+    {
+      "id": "INT_19_veh_28",
+      "timestamp": 19.5,
+      "vehicleId": "veh_28",
+      "vehicleType": "car",
+      "laneId": "N_TO_SAHARA_0",
+      "junctionId": "J_SAHARA",
+      "x": 1295.2,
+      "y": 379.82706267064617,
+      "duration": 0.2,
+      "status": "Active"
+    },
+    {
+      "id": "INT_19_veh_30",
+      "timestamp": 19.5,
+      "vehicleId": "veh_30",
+      "vehicleType": "car",
+      "laneId": "N_TO_GHODDOD_0",
+      "junctionId": "J_GHODDOD",
+      "x": 595.2,
+      "y": 388.84581946868184,
+      "duration": 0.2,
+      "status": "Active"
+    },
+    {
+      "id": "INT_19_veh_31",
+      "timestamp": 19.5,
+      "vehicleId": "veh_31",
+      "vehicleType": "car",
+      "laneId": "S_TO_SAHARA_0",
+      "junctionId": "J_SAHARA",
+      "x": 1304.8,
+      "y": 11.770408589592968,
+      "duration": 0.1,
+      "status": "Resolved"
+    },
+    {
+      "id": "INT_19_veh_33",
+      "timestamp": 19.5,
+      "vehicleId": "veh_33",
+      "vehicleType": "truck",
+      "laneId": "S_TO_GHODDOD_0",
+      "junctionId": "J_GHODDOD",
+      "x": 604.8,
+      "y": 11.792113145713431,
+      "duration": 0.2,
+      "status": "Active"
+    },
+    {
+      "id": "INT_19_veh_35",
+      "timestamp": 19.5,
+      "vehicleId": "veh_35",
+      "vehicleType": "car",
+      "laneId": "N_TO_SAHARA_0",
+      "junctionId": "J_SAHARA",
+      "x": 1295.2,
+      "y": 393.4365460131294,
+      "duration": 0.2,
+      "status": "Active"
+    },
+    {
+      "id": "INT_19_veh_39",
+      "timestamp": 19.5,
+      "vehicleId": "veh_39",
+      "vehicleType": "car",
+      "laneId": "N_TO_MAJURA_0",
+      "junctionId": "J_MAJURA",
+      "x": 945.2,
+      "y": 395.0726811007,
+      "duration": 0.1,
+      "status": "Resolved"
+    },
+    {
+      "id": "INT_26_veh_36",
+      "timestamp": 26.2,
+      "vehicleId": "veh_36",
+      "vehicleType": "truck",
+      "laneId": "S_TO_SAHARA_0",
+      "junctionId": "J_SAHARA",
+      "x": 1304.8,
+      "y": 24.987447763615624,
+      "duration": 0.1,
+      "status": "Active"
+    },
+    {
+      "id": "INT_26_veh_38",
+      "timestamp": 26.2,
+      "vehicleId": "veh_38",
+      "vehicleType": "car",
+      "laneId": "N_TO_SAHARA_0",
+      "junctionId": "J_SAHARA",
+      "x": 1295.2,
+      "y": 362.0483095197621,
+      "duration": 0.1,
+      "status": "Active"
+    },
+    {
+      "id": "INT_26_veh_4",
+      "timestamp": 26.2,
+      "vehicleId": "veh_4",
+      "vehicleType": "car",
+      "laneId": "GHODDOD_TO_S_0",
+      "junctionId": "J_GHODDOD",
+      "x": 595.2,
+      "y": 114.61912277930487,
+      "duration": 0.1,
+      "status": "Active"
+    },
+    {
+      "id": "INT_26_veh_43",
+      "timestamp": 26.2,
+      "vehicleId": "veh_43",
+      "vehicleType": "truck",
+      "laneId": "N_TO_GHODDOD_0",
+      "junctionId": "J_GHODDOD",
+      "x": 595.2,
+      "y": 380.3206917491351,
+      "duration": 0.1,
+      "status": "Active"
+    },
+    {
+      "id": "INT_26_veh_45",
+      "timestamp": 26.2,
+      "vehicleId": "veh_45",
+      "vehicleType": "truck",
+      "laneId": "N_TO_SAHARA_0",
+      "junctionId": "J_SAHARA",
+      "x": 1295.2,
+      "y": 387.9961998304975,
+      "duration": 0.1,
+      "status": "Active"
+    },
+    {
+      "id": "INT_26_veh_46",
+      "timestamp": 26.2,
+      "vehicleId": "veh_46",
+      "vehicleType": "car",
+      "laneId": "N_TO_SVNIT_0",
+      "junctionId": "J_SVNIT",
+      "x": 245.2,
+      "y": 383.13959095331967,
+      "duration": 0.1,
+      "status": "Active"
+    },
+    {
+      "id": "INT_26_veh_49",
+      "timestamp": 26.2,
+      "vehicleId": "veh_49",
+      "vehicleType": "truck",
+      "laneId": "S_TO_SAHARA_0",
+      "junctionId": "J_SAHARA",
+      "x": 1304.8,
+      "y": 10.111882225045655,
+      "duration": 0.1,
+      "status": "Active"
+    },
+    {
+      "id": "INT_26_veh_9",
+      "timestamp": 26.2,
+      "vehicleId": "veh_9",
+      "vehicleType": "motorcycle",
+      "laneId": "S_TO_MAJURA_0",
+      "junctionId": "J_MAJURA",
+      "x": 954.8,
+      "y": 185.39899994150323,
+      "duration": 0.1,
+      "status": "Active"
+    }
+  ]
+}

@@ -1,22 +1,64 @@
-<routes>
-    <vType id="car" vClass="passenger" length="5.0" minGap="2.5" maxSpeed="13.89" accel="2.6" decel="4.5" sigma="0.5" color="0,255,255"/>
-    <vType id="truck" vClass="truck" length="10.0" minGap="3.0" maxSpeed="8.0" accel="1.2" decel="3.5" sigma="0.5" color="255,255,0"/>
-    <vType id="bus" vClass="bus" length="12.0" minGap="3.0" maxSpeed="10.0" accel="1.5" decel="4.0" sigma="0.5" color="255,165,0"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+    <!-- Vehicle Types with Realistic Physics & Classes -->
+    <!-- 1. Passenger Car -->
+    <vType id="car" vClass="passenger" length="4.8" width="1.8" minGap="2.5" maxSpeed="16.67" accel="2.8" decel="4.5" sigma="0.5" color="6,182,212"/>
+    <!-- 2. Motorcycle (High agility, rapid acceleration) -->
+    <vType id="motorcycle" vClass="motorcycle" length="2.2" width="0.9" minGap="1.2" maxSpeed="18.0" accel="3.5" decel="5.0" sigma="0.5" color="16,185,129"/>
+    <!-- 3. Standard City Transit Bus -->
+    <vType id="bus" vClass="bus" length="12.0" width="2.5" minGap="3.0" maxSpeed="12.5" accel="1.5" decel="3.5" sigma="0.5" color="249,115,22"/>
+    <!-- 4. Dedicated Sitilink BRTS Bus (Allowed in dedicated BRTS lane) -->
+    <vType id="brts_bus" vClass="custom1" length="14.0" width="2.6" minGap="3.5" maxSpeed="16.67" accel="1.8" decel="4.0" sigma="0.5" color="99,102,241"/>
+    <!-- 5. Heavy Logistics Truck -->
+    <vType id="truck" vClass="truck" length="10.0" width="2.4" minGap="3.5" maxSpeed="10.0" accel="1.2" decel="3.0" sigma="0.5" color="234,179,8"/>
 
-    <!-- Routes -->
-    <route id="r_N2S" edges="N2C C2S"/>
-    <route id="r_N2E" edges="N2C C2E"/>
-    <route id="r_N2W" edges="N2C C2W"/>
+    <!-- A. MAIN CORRIDOR ARTERIAL THROUGH ROUTES (High Volume) -->
+    <route id="r_MAIN_W_TO_E" edges="W_TO_SVNIT SVNIT_TO_GHODDOD GHODDOD_TO_MAJURA MAJURA_TO_SAHARA SAHARA_TO_E"/>
+    <route id="r_MAIN_E_TO_W" edges="E_TO_SAHARA SAHARA_TO_MAJURA MAJURA_TO_GHODDOD GHODDOD_TO_SVNIT SVNIT_TO_W"/>
 
-    <route id="r_S2N" edges="S2C C2N"/>
-    <route id="r_S2E" edges="S2C C2E"/>
-    <route id="r_S2W" edges="S2C C2W"/>
+    <!-- B. DEDICATED BRTS RAPID TRANSIT ROUTES (Both Directions) -->
+    <route id="r_BRTS_W_TO_E" edges="W_TO_SVNIT SVNIT_TO_GHODDOD GHODDOD_TO_MAJURA MAJURA_TO_SAHARA SAHARA_TO_E"/>
+    <route id="r_BRTS_E_TO_W" edges="E_TO_SAHARA SAHARA_TO_MAJURA MAJURA_TO_GHODDOD GHODDOD_TO_SVNIT SVNIT_TO_W"/>
 
-    <route id="r_E2W" edges="E2C C2W"/>
-    <route id="r_E2N" edges="E2C C2N"/>
-    <route id="r_E2S" edges="E2C C2S"/>
+    <!-- C. ARTERIAL MERGE AND PARTIAL CORRIDOR MOVEMENTS -->
+    <route id="r_W_TO_GHODDOD_N" edges="W_TO_SVNIT SVNIT_TO_GHODDOD GHODDOD_TO_N"/>
+    <route id="r_W_TO_MAJURA_S" edges="W_TO_SVNIT SVNIT_TO_GHODDOD GHODDOD_TO_MAJURA MAJURA_TO_S"/>
+    <route id="r_E_TO_MAJURA_N" edges="E_TO_SAHARA SAHARA_TO_MAJURA MAJURA_TO_N"/>
+    <route id="r_E_TO_GHODDOD_S" edges="E_TO_SAHARA SAHARA_TO_MAJURA MAJURA_TO_GHODDOD GHODDOD_TO_S"/>
 
-    <route id="r_W2E" edges="W2C C2E"/>
-    <route id="r_W2N" edges="W2C C2N"/>
-    <route id="r_W2S" edges="W2C C2S"/>
+    <!-- D. J_SVNIT 4-WAY CROSS & TURNING MOVEMENTS -->
+    <route id="r_SVNIT_N_TO_S" edges="N_TO_SVNIT SVNIT_TO_S"/>
+    <route id="r_SVNIT_S_TO_N" edges="S_TO_SVNIT SVNIT_TO_N"/>
+    <route id="r_SVNIT_N_TO_E" edges="N_TO_SVNIT SVNIT_TO_GHODDOD GHODDOD_TO_MAJURA"/>
+    <route id="r_SVNIT_N_TO_W" edges="N_TO_SVNIT SVNIT_TO_W"/>
+    <route id="r_SVNIT_S_TO_E" edges="S_TO_SVNIT SVNIT_TO_GHODDOD"/>
+    <route id="r_SVNIT_S_TO_W" edges="S_TO_SVNIT SVNIT_TO_W"/>
+    <route id="r_SVNIT_W_TO_N" edges="W_TO_SVNIT SVNIT_TO_N"/>
+    <route id="r_SVNIT_W_TO_S" edges="W_TO_SVNIT SVNIT_TO_S"/>
+
+    <!-- E. J_GHODDOD 4-WAY CROSS & TURNING MOVEMENTS -->
+    <route id="r_GHODDOD_N_TO_S" edges="N_TO_GHODDOD GHODDOD_TO_S"/>
+    <route id="r_GHODDOD_S_TO_N" edges="S_TO_GHODDOD GHODDOD_TO_N"/>
+    <route id="r_GHODDOD_N_TO_E" edges="N_TO_GHODDOD GHODDOD_TO_MAJURA MAJURA_TO_SAHARA"/>
+    <route id="r_GHODDOD_N_TO_W" edges="N_TO_GHODDOD GHODDOD_TO_SVNIT SVNIT_TO_W"/>
+    <route id="r_GHODDOD_S_TO_E" edges="S_TO_GHODDOD GHODDOD_TO_MAJURA"/>
+    <route id="r_GHODDOD_S_TO_W" edges="S_TO_GHODDOD GHODDOD_TO_SVNIT"/>
+
+    <!-- F. J_MAJURA 4-WAY CROSS & TURNING MOVEMENTS -->
+    <route id="r_MAJURA_N_TO_S" edges="N_TO_MAJURA MAJURA_TO_S"/>
+    <route id="r_MAJURA_S_TO_N" edges="S_TO_MAJURA MAJURA_TO_N"/>
+    <route id="r_MAJURA_N_TO_E" edges="N_TO_MAJURA MAJURA_TO_SAHARA SAHARA_TO_E"/>
+    <route id="r_MAJURA_N_TO_W" edges="N_TO_MAJURA MAJURA_TO_GHODDOD GHODDOD_TO_SVNIT"/>
+    <route id="r_MAJURA_S_TO_E" edges="S_TO_MAJURA MAJURA_TO_SAHARA"/>
+    <route id="r_MAJURA_S_TO_W" edges="S_TO_MAJURA MAJURA_TO_GHODDOD"/>
+
+    <!-- G. J_SAHARA 4-WAY CROSS & TURNING MOVEMENTS -->
+    <route id="r_SAHARA_N_TO_S" edges="N_TO_SAHARA SAHARA_TO_S"/>
+    <route id="r_SAHARA_S_TO_N" edges="S_TO_SAHARA SAHARA_TO_N"/>
+    <route id="r_SAHARA_N_TO_W" edges="N_TO_SAHARA SAHARA_TO_MAJURA MAJURA_TO_GHODDOD"/>
+    <route id="r_SAHARA_N_TO_E" edges="N_TO_SAHARA SAHARA_TO_E"/>
+    <route id="r_SAHARA_S_TO_W" edges="S_TO_SAHARA SAHARA_TO_MAJURA"/>
+    <route id="r_SAHARA_S_TO_E" edges="S_TO_SAHARA SAHARA_TO_E"/>
+    <route id="r_SAHARA_E_TO_N" edges="E_TO_SAHARA SAHARA_TO_N"/>
+    <route id="r_SAHARA_E_TO_S" edges="E_TO_SAHARA SAHARA_TO_S"/>
 </routes>

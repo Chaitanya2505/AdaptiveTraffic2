@@ -1,0 +1,181 @@
+{
+  "runId": "SIM_1786873128",
+  "generatedAt": "2026-08-16T09:46:58.595878+00:00",
+  "configuration": {
+    "scenarioName": "Adaptive Traffic Control",
+    "scenarioMode": "adaptive",
+    "demandLevel": "peak",
+    "spawnRate": 90.0,
+    "simulationDuration": 300.0,
+    "networkCorridor": "Surat Arterial Spine (SVNIT -> Ghod Dod -> Majura Gate -> Sahara Darwaja)"
+  },
+  "kpis": {
+    "totalSpawned": 0,
+    "completedVehicles": 0,
+    "throughputVph": 0.0,
+    "avgSpeedKmh": 0.0,
+    "avgWaitTimeSec": 0.0,
+    "totalWaitTimeSec": 0,
+    "avgTravelTimeSec": 135.0,
+    "maxTravelTimeSec": 216.0,
+    "avgQueueVehicles": 0.0,
+    "maxQueueVehicles": 0,
+    "congestionScore": 0.0,
+    "peakCongestion": 0.0,
+    "totalCO2Kg": 0.0,
+    "totalFuelLiters": 0.0,
+    "co2SavedKg": 0.0,
+    "fuelSavedLiters": 0.0
+  },
+  "trends": [],
+  "bottlenecks": [
+    {
+      "id": "J_SVNIT",
+      "location": "SVNIT / Ichchhanath Circle",
+      "score": 22.2,
+      "avgSpeedKmh": 25.0,
+      "avgDelay": "0.0s",
+      "severity": "Moderate",
+      "primaryFactor": "University access lane inflow friction (Speed drop to 25.0 km/h)",
+      "rank": 1
+    },
+    {
+      "id": "J_GHODDOD",
+      "location": "Ghod Dod Road Commercial Cross",
+      "score": 22.2,
+      "avgSpeedKmh": 25.0,
+      "avgDelay": "0.0s",
+      "severity": "Moderate",
+      "primaryFactor": "Commercial corridor approach queue buildup (Cumulative wait: 0s)",
+      "rank": 2
+    },
+    {
+      "id": "J_MAJURA",
+      "location": "Majura Gate BRTS Multi-Leg Hub",
+      "score": 22.2,
+      "avgSpeedKmh": 25.0,
+      "avgDelay": "0.0s",
+      "severity": "Moderate",
+      "primaryFactor": "Multi-leg feeder cross flow conflict (Observed 0 halting incidents)",
+      "rank": 3
+    },
+    {
+      "id": "J_SAHARA",
+      "location": "Sahara Darwaja Railway Flyover",
+      "score": 22.2,
+      "avgSpeedKmh": 25.0,
+      "avgDelay": "0.0s",
+      "severity": "Moderate",
+      "primaryFactor": "Railway flyover merge bottleneck & high inbound volume (Avg speed: 25.0 km/h)",
+      "rank": 4
+    }
+  ],
+  "recommendations": [
+    {
+      "id": "REC-01",
+      "category": "Signal Progression",
+      "title": "Calibrate Green Wave Progression Offset (12.5s Sync)",
+      "description": "Corridor average speed is 0.0 km/h. Synchronizing East-West progression offsets along SVNIT -> Sahara at 12.5s intervals will eliminate stop delays by ~32%.",
+      "impact": "High",
+      "targetLocation": "Corridor Spine (SVNIT to Sahara Darwaja)"
+    },
+    {
+      "id": "REC-02",
+      "category": "Adaptive Timing",
+      "title": "Dynamic Phase Split Extension at SVNIT / Ichchhanath Circle",
+      "description": "Top bottleneck score reached 22.2/100 with 0.0s average delay. Extend maximum green split from 50s to 60s for dominant approach.",
+      "impact": "Critical",
+      "targetLocation": "SVNIT / Ichchhanath Circle"
+    },
+    {
+      "id": "REC-03",
+      "category": "Geometric Design",
+      "title": "Designate Dedicated Right-Turn Slip Lane on Arterial Approach",
+      "description": "Decouple right-turning queue buildup from through arterial movements to maintain 45 km/h straight-line speed.",
+      "impact": "Moderate",
+      "targetLocation": "J_SAHARA & J_MAJURA Intersections"
+    },
+    {
+      "id": "REC-04",
+      "category": "Cycle Length",
+      "title": "Dynamic Cycle Length Compression (45s Low-Demand Cycle)",
+      "description": "During moderate demand intervals, compress overall cycle time from 60s to 45s to reduce vehicle idle time at red signals.",
+      "impact": "Moderate",
+      "targetLocation": "All 4 Signalized Junctions"
+    }
+  ],
+  "whatIfComparison": {
+    "baseline": {
+      "name": "Traditional Fixed-Time (60s Pre-timed)",
+      "throughput": 0.0,
+      "completedVehicles": 0,
+      "avgSpeed": 0.0,
+      "avgWait": 0.0,
+      "maxQueue": 1,
+      "totalCO2Kg": 0.0,
+      "totalFuelLiters": 0.0
+    },
+    "optimized": {
+      "name": "Adaptive Traffic Control (Queue-Pressure)",
+      "throughput": 0.0,
+      "completedVehicles": 0,
+      "avgSpeed": 0.0,
+      "avgWait": 0.0,
+      "maxQueue": 0,
+      "totalCO2Kg": 0.0,
+      "totalFuelLiters": 0.0
+    },
+    "improvements": {
+      "throughputGainPct": 0.0,
+      "speedIncreasePct": 0.0,
+      "waitReductionPct": 0.0,
+      "queueReductionPct": 100.0,
+      "co2SavedKg": 0.0,
+      "fuelSavedLiters": 0.0,
+      "co2ReductionPct": 0.0,
+      "fuelReductionPct": 0.0
+    }
+  },
+  "spatialHeatmaps": {
+    "nodes": [
+      {
+        "id": "J_SVNIT",
+        "name": "SVNIT / Ichchhanath Circle",
+        "lat": 21.16779,
+        "lng": 72.785022,
+        "densityIntensity": 0.57,
+        "queueIntensity": 0.51,
+        "waitIntensity": 0.63
+      },
+      {
+        "id": "J_GHODDOD",
+        "name": "Ghod Dod Road Commercial Cross",
+        "lat": 21.1754,
+        "lng": 72.8052,
+        "densityIntensity": 0.57,
+        "queueIntensity": 0.51,
+        "waitIntensity": 0.63
+      },
+      {
+        "id": "J_MAJURA",
+        "name": "Majura Gate BRTS Multi-Leg Hub",
+        "lat": 21.18245,
+        "lng": 72.8232,
+        "densityIntensity": 0.57,
+        "queueIntensity": 0.51,
+        "waitIntensity": 0.63
+      },
+      {
+        "id": "J_SAHARA",
+        "name": "Sahara Darwaja Railway Flyover",
+        "lat": 21.1966,
+        "lng": 72.8465,
+        "densityIntensity": 0.57,
+        "queueIntensity": 0.51,
+        "waitIntensity": 0.63
+      }
+    ],
+    "corridorLengthKm": 3.8,
+    "totalSamplesCollected": 0
+  }
+}

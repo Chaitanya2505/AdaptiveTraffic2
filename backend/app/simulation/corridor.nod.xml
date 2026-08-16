@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nodes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/nodes_file.xsd">
+    <!-- Corridor Signalized Intersections (Surat Arterial Spine) -->
+    <node id="J_SVNIT" x="0" y="0" type="traffic_light"/>
+    <node id="J_GHODDOD" x="350" y="0" type="traffic_light"/>
+    <node id="J_MAJURA" x="700" y="0" type="traffic_light"/>
+    <node id="J_SAHARA" x="1050" y="0" type="traffic_light"/>
+
+    <!-- Corridor Arterial Perimeter Gateways (West & East) -->
+    <node id="W_ENTRY" x="-250" y="0" type="priority"/>
+    <node id="E_ENTRY" x="1300" y="0" type="priority"/>
+
+    <!-- North/South Feeder Gateways for J_SVNIT -->
+    <node id="N_SVNIT" x="0" y="200" type="priority"/>
+    <node id="S_SVNIT" x="0" y="-200" type="priority"/>
+
+    <!-- North/South Feeder Gateways for J_GHODDOD -->
+    <node id="N_GHODDOD" x="350" y="200" type="priority"/>
+    <node id="S_GHODDOD" x="350" y="-200" type="priority"/>
+
+    <!-- North/South Feeder Gateways for J_MAJURA -->
+    <node id="N_MAJURA" x="700" y="200" type="priority"/>
+    <node id="S_MAJURA" x="700" y="-200" type="priority"/>
+
+    <!-- North/South Feeder Gateways for J_SAHARA -->
+    <node id="N_SAHARA" x="1050" y="200" type="priority"/>
+    <node id="S_SAHARA" x="1050" y="-200" type="priority"/>
+</nodes>

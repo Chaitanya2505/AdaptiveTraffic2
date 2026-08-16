@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<edges xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/edges_file.xsd">
+    <!-- Main Arterial Corridor (Westbound & Eastbound) -->
+    <!-- Segment 0: West Entry <-> J_SVNIT -->
+    <edge id="W_TO_SVNIT" from="W_ENTRY" to="J_SVNIT" numLanes="3" speed="16.67">
+        <lane index="0" allow="bus custom1" speed="16.67"/>
+        <lane index="1" disallow="bus" speed="13.89"/>
+        <lane index="2" disallow="bus" speed="13.89"/>
+    </edge>
+    <edge id="SVNIT_TO_W" from="J_SVNIT" to="W_ENTRY" numLanes="3" speed="16.67">
+        <lane index="0" allow="bus custom1" speed="16.67"/>
+        <lane index="1" disallow="bus" speed="13.89"/>
+        <lane index="2" disallow="bus" speed="13.89"/>
+    </edge>
+
+    <!-- Segment 1: J_SVNIT <-> J_GHODDOD -->
+    <edge id="SVNIT_TO_GHODDOD" from="J_SVNIT" to="J_GHODDOD" numLanes="3" speed="16.67">
+        <lane index="0" allow="bus custom1" speed="16.67"/>
+        <lane index="1" disallow="bus" speed="13.89"/>
+        <lane index="2" disallow="bus" speed="13.89"/>
+    </edge>
+    <edge id="GHODDOD_TO_SVNIT" from="J_GHODDOD" to="J_SVNIT" numLanes="3" speed="16.67">
+        <lane index="0" allow="bus custom1" speed="16.67"/>
+        <lane index="1" disallow="bus" speed="13.89"/>
+        <lane index="2" disallow="bus" speed="13.89"/>
+    </edge>
+
+    <!-- Segment 2: J_GHODDOD <-> J_MAJURA -->
+    <edge id="GHODDOD_TO_MAJURA" from="J_GHODDOD" to="J_MAJURA" numLanes="3" speed="16.67">
+        <lane index="0" allow="bus custom1" speed="16.67"/>
+        <lane index="1" disallow="bus" speed="13.89"/>
+        <lane index="2" disallow="bus" speed="13.89"/>
+    </edge>
+    <edge id="MAJURA_TO_GHODDOD" from="J_MAJURA" to="J_GHODDOD" numLanes="3" speed="16.67">
+        <lane index="0" allow="bus custom1" speed="16.67"/>
+        <lane index="1" disallow="bus" speed="13.89"/>
+        <lane index="2" disallow="bus" speed="13.89"/>
+    </edge>
+
+    <!-- Segment 3: J_MAJURA <-> J_SAHARA -->
+    <edge id="MAJURA_TO_SAHARA" from="J_MAJURA" to="J_SAHARA" numLanes="3" speed="16.67">
+        <lane index="0" allow="bus custom1" speed="16.67"/>
+        <lane index="1" disallow="bus" speed="13.89"/>
+        <lane index="2" disallow="bus" speed="13.89"/>
+    </edge>
+    <edge id="SAHARA_TO_MAJURA" from="J_SAHARA" to="J_MAJURA" numLanes="3" speed="16.67">
+        <lane index="0" allow="bus custom1" speed="16.67"/>
+        <lane index="1" disallow="bus" speed="13.89"/>
+        <lane index="2" disallow="bus" speed="13.89"/>
+    </edge>
+
+    <!-- Segment 4: J_SAHARA <-> East Entry -->
+    <edge id="SAHARA_TO_E" from="J_SAHARA" to="E_ENTRY" numLanes="3" speed="16.67">
+        <lane index="0" allow="bus custom1" speed="16.67"/>
+        <lane index="1" disallow="bus" speed="13.89"/>
+        <lane index="2" disallow="bus" speed="13.89"/>
+    </edge>
+    <edge id="E_TO_SAHARA" from="E_ENTRY" to="J_SAHARA" numLanes="3" speed="16.67">
+        <lane index="0" allow="bus custom1" speed="16.67"/>
+        <lane index="1" disallow="bus" speed="13.89"/>
+        <lane index="2" disallow="bus" speed="13.89"/>
+    </edge>
+
+    <!-- North/South Feeder Roads for J_SVNIT -->
+    <edge id="N_TO_SVNIT" from="N_SVNIT" to="J_SVNIT" numLanes="2" speed="13.89"/>
+    <edge id="SVNIT_TO_N" from="J_SVNIT" to="N_SVNIT" numLanes="2" speed="13.89"/>
+    <edge id="S_TO_SVNIT" from="S_SVNIT" to="J_SVNIT" numLanes="2" speed="13.89"/>
+    <edge id="SVNIT_TO_S" from="J_SVNIT" to="S_SVNIT" numLanes="2" speed="13.89"/>
+
+    <!-- North/South Feeder Roads for J_GHODDOD -->
+    <edge id="N_TO_GHODDOD" from="N_GHODDOD" to="J_GHODDOD" numLanes="2" speed="13.89"/>
+    <edge id="GHODDOD_TO_N" from="J_GHODDOD" to="N_GHODDOD" numLanes="2" speed="13.89"/>
+    <edge id="S_TO_GHODDOD" from="S_GHODDOD" to="J_GHODDOD" numLanes="2" speed="13.89"/>
+    <edge id="GHODDOD_TO_S" from="J_GHODDOD" to="S_GHODDOD" numLanes="2" speed="13.89"/>
+
+    <!-- North/South Feeder Roads for J_MAJURA -->
+    <edge id="N_TO_MAJURA" from="N_MAJURA" to="J_MAJURA" numLanes="2" speed="13.89"/>
+    <edge id="MAJURA_TO_N" from="J_MAJURA" to="N_MAJURA" numLanes="2" speed="13.89"/>
+    <edge id="S_TO_MAJURA" from="S_MAJURA" to="J_MAJURA" numLanes="2" speed="13.89"/>
+    <edge id="MAJURA_TO_S" from="J_MAJURA" to="S_MAJURA" numLanes="2" speed="13.89"/>
+
+    <!-- North/South Feeder Roads for J_SAHARA -->
+    <edge id="N_TO_SAHARA" from="N_SAHARA" to="J_SAHARA" numLanes="2" speed="13.89"/>
+    <edge id="SAHARA_TO_N" from="J_SAHARA" to="N_SAHARA" numLanes="2" speed="13.89"/>
+    <edge id="S_TO_SAHARA" from="S_SAHARA" to="J_SAHARA" numLanes="2" speed="13.89"/>
+    <edge id="SAHARA_TO_S" from="J_SAHARA" to="S_SAHARA" numLanes="2" speed="13.89"/>
+</edges>
