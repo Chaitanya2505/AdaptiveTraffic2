@@ -38,20 +38,41 @@ async def seed_data():
             )
             db.add_all([admin_user, operator_user])
             
-        # Seed initial junctions if none exist
-        junction_check = await db.execute(select(Junction).limit(1))
-        if not junction_check.scalar_one_or_none():
-            surat_junctions = [
-                Junction(id="J-001", name="SVNIT Junction", latitude=21.167790, longitude=72.785022, num_lanes=4, has_brts=True, status="active"),
-                Junction(id="J-002", name="7 University Road", latitude=21.151035, longitude=72.772901, num_lanes=4, has_brts=False, status="active"),
-                Junction(id="J-003", name="80 Feet Road Junction", latitude=21.151035, longitude=72.772901, num_lanes=4, has_brts=False, status="active"),
-                Junction(id="J-004", name="Unapani Road Junction", latitude=21.151035, longitude=72.772901, num_lanes=4, has_brts=True, status="active"),
-                Junction(id="J-005", name="Ghod Dod Road", latitude=21.151035, longitude=72.772901, num_lanes=4, has_brts=False, status="active"),
-                Junction(id="J-006", name="705 Udhana - Magdalla Rd", latitude=21.150858, longitude=72.772651, num_lanes=6, has_brts=True, status="active"),
-                Junction(id="J-007", name="Amroli Cross Rd", latitude=21.238064, longitude=72.848312, num_lanes=4, has_brts=True, status="active"),
-                Junction(id="J-008", name="Vesu Canal Rd", latitude=21.169641, longitude=72.811659, num_lanes=4, has_brts=True, status="active"),
-            ]
-            db.add_all(surat_junctions)
+        # Seed / Sync initial 20 junctions
+        surat_junctions_data = [
+            {"id": "J-001", "name": "SVNIT Junction", "latitude": 21.167790, "longitude": 72.785022, "num_lanes": 4, "has_brts": True, "status": "active"},
+            {"id": "J-002", "name": "Majura Gate BRTS Hub", "latitude": 21.182450, "longitude": 72.823200, "num_lanes": 6, "has_brts": True, "status": "active"},
+            {"id": "J-003", "name": "Ghod Dod Road Junction", "latitude": 21.175400, "longitude": 72.805200, "num_lanes": 4, "has_brts": False, "status": "active"},
+            {"id": "J-004", "name": "Sahara Darwaja Junction", "latitude": 21.196600, "longitude": 72.846500, "num_lanes": 6, "has_brts": True, "status": "active"},
+            {"id": "J-005", "name": "Udhna Darwaja", "latitude": 21.179400, "longitude": 72.836200, "num_lanes": 6, "has_brts": True, "status": "active"},
+            {"id": "J-006", "name": "Hirabaug Circle", "latitude": 21.216200, "longitude": 72.863500, "num_lanes": 6, "has_brts": True, "status": "active"},
+            {"id": "J-007", "name": "Adajan Patiya Junction", "latitude": 21.198200, "longitude": 72.795200, "num_lanes": 4, "has_brts": True, "status": "active"},
+            {"id": "J-008", "name": "Athwa Gate / Chowk Bazaar", "latitude": 21.188400, "longitude": 72.815400, "num_lanes": 4, "has_brts": False, "status": "active"},
+            {"id": "J-009", "name": "Delhi Gate Circle", "latitude": 21.199400, "longitude": 72.833200, "num_lanes": 6, "has_brts": True, "status": "active"},
+            {"id": "J-010", "name": "VNSGU University Road", "latitude": 21.153400, "longitude": 72.775400, "num_lanes": 4, "has_brts": False, "status": "active"},
+            {"id": "J-011", "name": "Katargam Darwaja", "latitude": 21.215400, "longitude": 72.832400, "num_lanes": 4, "has_brts": True, "status": "active"},
+            {"id": "J-012", "name": "Vesu VIP Road Junction", "latitude": 21.142400, "longitude": 72.796200, "num_lanes": 6, "has_brts": True, "status": "active"},
+            {"id": "J-013", "name": "Amroli Cross Road", "latitude": 21.238100, "longitude": 72.848400, "num_lanes": 4, "has_brts": True, "status": "active"},
+            {"id": "J-014", "name": "Pandesara GIDC Cross", "latitude": 21.123400, "longitude": 72.835400, "num_lanes": 4, "has_brts": False, "status": "active"},
+            {"id": "J-015", "name": "Sarthana Jakat Naka", "latitude": 21.232200, "longitude": 72.891400, "num_lanes": 6, "has_brts": True, "status": "active"},
+            {"id": "J-016", "name": "Pal Rander Road", "latitude": 21.210200, "longitude": 72.782400, "num_lanes": 4, "has_brts": False, "status": "active"},
+            {"id": "J-017", "name": "Ring Road Rustampura", "latitude": 21.181400, "longitude": 72.835400, "num_lanes": 6, "has_brts": True, "status": "active"},
+            {"id": "J-018", "name": "City Light Junction", "latitude": 21.162400, "longitude": 72.802400, "num_lanes": 4, "has_brts": False, "status": "active"},
+            {"id": "J-019", "name": "Kadodara Highway Cross", "latitude": 21.171400, "longitude": 72.910400, "num_lanes": 6, "has_brts": False, "status": "active"},
+            {"id": "J-020", "name": "Dumas Beach Cross Road", "latitude": 21.095400, "longitude": 72.725400, "num_lanes": 4, "has_brts": False, "status": "active"},
+        ]
+        for jdata in surat_junctions_data:
+            existing = await db.execute(select(Junction).where(Junction.id == jdata["id"]))
+            j_obj = existing.scalar_one_or_none()
+            if j_obj:
+                j_obj.name = jdata["name"]
+                j_obj.latitude = jdata["latitude"]
+                j_obj.longitude = jdata["longitude"]
+                j_obj.num_lanes = jdata["num_lanes"]
+                j_obj.has_brts = jdata["has_brts"]
+                j_obj.status = jdata["status"]
+            else:
+                db.add(Junction(**jdata))
             
         await db.commit()
 
