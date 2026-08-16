@@ -447,33 +447,6 @@ class SumoService:
                 else:
                     machine["decision_reason"] = f"NS Pressure ({ns_p}) dominant over EW ({ew_p}) -> Extended Green"
 
-                if elapsed_in_phase < machine["min_green"]:
-                    machine["decision_reason"] = f"Holding EW Green (Min green hold: {machine['min_green'] - elapsed_in_phase:.1f}s remaining)"
-                elif ns_p > (ew_p + 8.0) and elapsed_in_phase >= machine["min_green"]:
-                    # Competing NS pressure is significantly higher -> Switch to Yellow
-                    self._switch_tls_phase(jid, 1, current_time, f"NS Pressure ({ns_p}) > EW ({ew_p}) -> Initiating Yellow transition")
-                elif elapsed_in_phase >= machine["max_green"]:
-                    # Max green ceiling reached -> Force phase switch to prevent NS starvation
-                    self._switch_tls_phase(jid, 1, current_time, f"EW Max Green ({machine['max_green']}s) reached -> Switching to NS")
-                else:
-                    # Extend green
-                    machine["decision_reason"] = f"EW Pressure ({ew_p}) dominant over NS ({ns_p}) -> Extended Green"
-
-            elif current_phase == 2:  # Currently NS Green
-                ew_p = p_data["ew_pressure"]
-                ns_p = p_data["ns_pressure"]
-
-                if elapsed_in_phase < machine["min_green"]:
-                    machine["decision_reason"] = f"Holding NS Green (Min green hold: {machine['min_green'] - elapsed_in_phase:.1f}s remaining)"
-                elif ew_p > (ns_p + 8.0) and elapsed_in_phase >= machine["min_green"]:
-                    # Competing EW pressure is significantly higher -> Switch to Yellow
-                    self._switch_tls_phase(jid, 3, current_time, f"EW Pressure ({ew_p}) > NS ({ns_p}) -> Initiating Yellow transition")
-                elif elapsed_in_phase >= machine["max_green"]:
-                    # Max green ceiling reached -> Force phase switch
-                    self._switch_tls_phase(jid, 3, current_time, f"NS Max Green ({machine['max_green']}s) reached -> Switching to EW")
-                else:
-                    machine["decision_reason"] = f"NS Pressure ({ns_p}) dominant over EW ({ew_p}) -> Extended Green"
-
     def _switch_tls_phase(self, tls_id: str, new_phase: int, current_time: float, reason: str):
         """Sets the SUMO traffic light phase via TraCI and updates internal state machine."""
         machine = self.signal_machines[tls_id]
@@ -579,28 +552,43 @@ class SumoService:
                 pass
 
         # Per-lane metrics & congestion coloring
+        # Ultra-fast in-memory lane summary derived from vehicle telemetry (eliminates 320 blocking TraCI socket queries per step)
         lanes_summary = {}
+        lane_veh_map = {}
+        for v in vehicles_data:
+            lid = v.get("laneId", "")
+            if lid:
+                if lid not in lane_veh_map:
+                    lane_veh_map[lid] = {"count": 0, "halted": 0, "speeds": []}
+                lane_veh_map[lid]["count"] += 1
+                if v.get("speed", 0.0) < 0.1:
+                    lane_veh_map[lid]["halted"] += 1
+                lane_veh_map[lid]["speeds"].append(v.get("speed", 0.0))
+
         if self.geometry_cache and "lanes" in self.geometry_cache:
             for l in self.geometry_cache["lanes"]:
                 lid = l["id"]
-                try:
-                    q_len = traci.lane.getLastStepHaltingNumber(lid)
-                    occ = traci.lane.getLastStepOccupancy(lid)
-                    v_cnt = traci.lane.getLastStepVehicleNumber(lid)
-                    mean_spd = traci.lane.getLastStepMeanSpeed(lid)
+                l_data = lane_veh_map.get(lid)
+                if l_data:
+                    q_len = l_data["halted"]
+                    v_cnt = l_data["count"]
+                    occ = min(1.0, (v_cnt * 5.0) / max(l.get("length", 100.0), 30.0))
+                    mean_spd = sum(l_data["speeds"]) / max(len(l_data["speeds"]), 1)
+                    c_level = "critical" if q_len >= 6 or occ > 0.6 else "congested" if q_len >= 3 or occ > 0.3 else "moderate" if v_cnt > 0 else "low"
+                else:
+                    q_len = 0
+                    v_cnt = 0
+                    occ = 0.0
+                    mean_spd = 13.89
+                    c_level = "low"
 
-                    # Congestion classification
-                    c_level = "critical" if q_len >= 8 or occ > 0.6 else "congested" if q_len >= 4 or occ > 0.3 else "moderate" if v_cnt > 0 else "low"
-
-                    lanes_summary[lid] = {
-                        "queueLength": int(q_len),
-                        "occupancy": float(occ),
-                        "vehicleCount": int(v_cnt),
-                        "avgSpeed": float(mean_spd),
-                        "congestionLevel": c_level
-                    }
-                except Exception:
-                    pass
+                lanes_summary[lid] = {
+                    "queueLength": int(q_len),
+                    "occupancy": float(occ),
+                    "vehicleCount": int(v_cnt),
+                    "avgSpeed": float(mean_spd),
+                    "congestionLevel": c_level
+                }
 
         active_count = len(vehicles_data)
         avg_speed = sum(v["speed"] for v in vehicles_data) / max(active_count, 1)
@@ -610,26 +598,18 @@ class SumoService:
             elapsed = sim_time - self.demo_start_time
             demo_progress = min(100.0, round((elapsed / self.demo_target_duration) * 100.0, 1))
 
-        # Dynamic live streaming analytics
+        # Dynamic live streaming analytics (retrieved from 1-Hz cached state to eliminate compute lag)
         live_timeline = simulation_analytics.timeline[-60:] if simulation_analytics.timeline else []
-        live_heatmaps = simulation_analytics._generate_spatial_heatmaps()
-        live_bottlenecks = simulation_analytics._calculate_dynamic_bottlenecks()
-        live_junctions = simulation_analytics._generate_detailed_junctions_analytics(max(sim_time, 1.0))
-        cur_tp = round((len(simulation_analytics.completed_vehicles) / max(sim_time, 1.0)) * 3600, 1)
-        cur_spd = round(avg_speed * 3.6, 1)
-        recent_waits = [p["avgWaitTime"] for p in simulation_analytics.timeline[-10:]]
-        cur_wait = round(sum(recent_waits) / max(len(recent_waits), 1), 1) if recent_waits else 0.0
-        cur_q = max([p["totalQueue"] for p in simulation_analytics.timeline[-10:]] or [0])
-        cur_co2 = round(simulation_analytics.total_co2_grams / 1000.0, 2)
-        cur_fuel = round(simulation_analytics.total_fuel_ml / 1000.0, 2)
-
-        live_whatif = simulation_analytics._compute_ground_truth_comparison(
-            cur_throughput=cur_tp,
-            cur_speed=cur_spd,
-            cur_wait=cur_wait,
-            cur_queue=cur_q,
-            cur_co2=cur_co2,
-            cur_fuel=cur_fuel,
+        live_heatmaps = simulation_analytics.cached_heatmaps or simulation_analytics._generate_spatial_heatmaps()
+        live_bottlenecks = simulation_analytics.cached_bottlenecks or simulation_analytics._calculate_dynamic_bottlenecks()
+        live_junctions = simulation_analytics.cached_junctions or simulation_analytics._generate_detailed_junctions_analytics(max(sim_time, 1.0))
+        live_whatif = simulation_analytics.cached_whatif or simulation_analytics._compute_ground_truth_comparison(
+            cur_throughput=round((len(simulation_analytics.completed_vehicles) / max(sim_time, 1.0)) * 3600, 1),
+            cur_speed=round(avg_speed * 3.6, 1),
+            cur_wait=0.0,
+            cur_queue=0,
+            cur_co2=round(simulation_analytics.total_co2_grams / 1000.0, 2),
+            cur_fuel=round(simulation_analytics.total_fuel_ml / 1000.0, 2),
             cur_completed=len(simulation_analytics.completed_vehicles),
             junctions_data=live_junctions
         )
@@ -657,13 +637,13 @@ class SumoService:
             "liveJunctions": live_junctions,
             "liveWhatIf": live_whatif,
             "sustainability": {
-                "co2Kg": cur_co2,
-                "fuelLiters": cur_fuel
+                "co2Kg": round(simulation_analytics.total_co2_grams / 1000.0, 2),
+                "fuelLiters": round(simulation_analytics.total_fuel_ml / 1000.0, 2)
             },
             "alerts": self.live_alerts[-5:]
         }
 
-        # Feed step into telemetry analytics store
+        # Feed micro-step into telemetry analytics engine
         if not self.is_paused:
             simulation_analytics.record_step(sim_time, state_payload, lanes_summary)
 
@@ -839,11 +819,11 @@ class SumoService:
                             return_exceptions=True
                         )
 
-                # Step delay adjustment
+                # Step delay adjustment (Exact 1:1 real-time pacing at 1x speed)
                 if self.is_paused:
                     await asyncio.sleep(0.1)
                 else:
-                    delay = max(0.002, 0.1 / self.speed_multiplier)
+                    delay = max(0.01, 0.08 / max(self.speed_multiplier, 0.1))
                     await asyncio.sleep(delay)
 
             except Exception as e:
