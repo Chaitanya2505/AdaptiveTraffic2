@@ -40,12 +40,12 @@ export default function VisionPage() {
 
   const DEFAULT_TEST_VIDEO = '/sample_cctv/brt_sample.mp4';
 
-  // Feeds state initialized with test traffic video on all 4 approach lanes
+  // Feeds state initialized with empty lanes
   const [laneFeeds, setLaneFeeds] = useState({
-    0: { file: null, preview: DEFAULT_TEST_VIDEO, raw: DEFAULT_TEST_VIDEO, type: 'video', isCustomUpload: false },
-    1: { file: null, preview: DEFAULT_TEST_VIDEO, raw: DEFAULT_TEST_VIDEO, type: 'video', isCustomUpload: false },
-    2: { file: null, preview: DEFAULT_TEST_VIDEO, raw: DEFAULT_TEST_VIDEO, type: 'video', isCustomUpload: false },
-    3: { file: null, preview: DEFAULT_TEST_VIDEO, raw: DEFAULT_TEST_VIDEO, type: 'video', isCustomUpload: false }
+    0: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
+    1: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
+    2: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
+    3: { file: null, preview: null, raw: null, type: null, isCustomUpload: false }
   });
 
   const [isAnalyzed, setIsAnalyzed] = useState(false);
@@ -83,10 +83,10 @@ export default function VisionPage() {
 
   const handleResetDefaultFeeds = () => {
     setLaneFeeds({
-      0: { file: null, preview: DEFAULT_TEST_VIDEO, raw: DEFAULT_TEST_VIDEO, type: 'video', isCustomUpload: false },
-      1: { file: null, preview: DEFAULT_TEST_VIDEO, raw: DEFAULT_TEST_VIDEO, type: 'video', isCustomUpload: false },
-      2: { file: null, preview: DEFAULT_TEST_VIDEO, raw: DEFAULT_TEST_VIDEO, type: 'video', isCustomUpload: false },
-      3: { file: null, preview: DEFAULT_TEST_VIDEO, raw: DEFAULT_TEST_VIDEO, type: 'video', isCustomUpload: false }
+      0: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
+      1: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
+      2: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
+      3: { file: null, preview: null, raw: null, type: null, isCustomUpload: false }
     });
     setDetectionResult(null);
     setInferenceMetadata(null);

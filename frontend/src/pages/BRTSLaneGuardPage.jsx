@@ -321,33 +321,6 @@ export default function BRTSLaneGuardPage() {
         </div>
       </Card>
 
-      {/* 2. Key Telemetry Metrics Bar */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Card className="border-slate-800 bg-slate-950 p-4">
-          <div className="text-xs font-semibold text-slate-400">Total Violations</div>
-          <div className="mt-1 text-2xl font-bold text-white">{stats.totalViolations}</div>
-          <div className="mt-1 text-[10px] text-slate-500">Lane Intrusions</div>
-        </Card>
-
-        <Card className="border-slate-800 bg-slate-950 p-4">
-          <div className="text-xs font-semibold text-slate-400">Detection Accuracy</div>
-          <div className="mt-1 text-2xl font-bold text-slate-200">{stats.precision}</div>
-          <div className="mt-1 text-[10px] text-slate-500">RT-DETR Transformer</div>
-        </Card>
-
-        <Card className="border-slate-800 bg-slate-950 p-4">
-          <div className="text-xs font-semibold text-slate-400">Transit Speed Gain</div>
-          <div className="mt-1 text-2xl font-bold text-slate-200">{stats.speedGain}</div>
-          <div className="mt-1 text-[10px] text-slate-500">BRTS Bus Priority</div>
-        </Card>
-
-        <Card className="border-slate-800 bg-slate-950 p-4">
-          <div className="text-xs font-semibold text-slate-400">Fines Issued</div>
-          <div className="mt-1 text-2xl font-bold text-slate-200">{stats.finesIssued}</div>
-          <div className="mt-1 text-[10px] text-slate-500">SMC E-Challan</div>
-        </Card>
-      </div>
-
       {/* 3. Real-Time Violations Feed (Full-Width Section Below Stream) */}
       <Card className="border-slate-800 bg-slate-950 p-5 shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3.5 mb-4">
@@ -367,60 +340,76 @@ export default function BRTSLaneGuardPage() {
             <p className="text-[11px] text-slate-500 mt-0.5">No unauthorized vehicle intrusions currently detected in this corridor.</p>
           </div>
         ) : (
-          <div className="flex flex-row gap-3.5 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
-            {violations.map((v) => (
-              <div
-                key={v.id}
-                className="w-[320px] shrink-0 rounded-lg border border-slate-800 bg-slate-900/60 p-3.5 hover:border-slate-700 transition flex flex-col gap-2.5 shadow-sm"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="rounded bg-slate-800 px-2 py-0.5 font-mono text-xs font-bold text-amber-400 border border-slate-700">
-                      {v.plate_number || 'GJ-05-XX-0000'}
-                    </span>
-                    <span className="text-xs font-semibold text-slate-300">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-900/80 text-slate-400 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-800">
+                <tr>
+                  <th className="py-3 px-4">Ref Challan #</th>
+                  <th className="py-3 px-4">License Plate</th>
+                  <th className="py-3 px-4">Offending Vehicle</th>
+                  <th className="py-3 px-4">Fine Amount</th>
+                  <th className="py-3 px-4">Speed</th>
+                  <th className="py-3 px-4">Timestamp</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-850 text-slate-300">
+                {violations.map((v) => (
+                  <tr key={v.id} className="hover:bg-slate-900/40 transition-colors">
+                    <td className="py-3 px-4 font-mono font-bold text-white">
+                      {v.challan_ref || `SMC/BRTS/2026/00${v.id}`}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="font-mono bg-slate-900 border border-slate-800 px-2 py-0.5 rounded text-yellow-400 font-extrabold">
+                        {v.plate_number || 'GJ-05-XX-0000'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 font-semibold text-slate-200">
                       {v.vehicle_type || 'Private Vehicle'}
-                    </span>
-                  </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                    v.status === 'ISSUED' 
-                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' 
-                      : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                  }`}>
-                    {v.status || 'PENDING'}
-                  </span>
-                </div>
+                    </td>
+                    <td className="py-3 px-4 font-mono font-bold text-rose-400">
+                      ₹ {v.fine_amount || 1000}
+                    </td>
+                    <td className="py-3 px-4 font-mono text-slate-300">
+                      {v.speed_kmh || 42.5} km/h
+                    </td>
+                    <td className="py-3 px-4 text-slate-400">
+                      {v.timestamp ? new Date(v.timestamp).toLocaleTimeString() : 'Live'}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                        v.status === 'ISSUED' 
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' 
+                          : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                      }`}>
+                        {v.status || 'PENDING'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-right space-x-2">
+                      <button
+                        onClick={() => {
+                          setSelectedViolation(v);
+                          setShowChallanModal(true);
+                        }}
+                        className="py-1 px-2.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-semibold text-[11px] transition inline-flex items-center gap-1"
+                      >
+                        <FileText className="h-3 w-3" /> View E-Challan
+                      </button>
 
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
-                  <span>Fine: <strong className="text-rose-400 font-bold">₹ {v.fine_amount || 2000}</strong></span>
-                  <span>Speed: {v.speed_kmh || 42.5} km/h</span>
-                  <span>{v.timestamp ? new Date(v.timestamp).toLocaleTimeString() : 'Live'}</span>
-                </div>
-
-                <div className="flex items-center gap-2 pt-1 border-t border-slate-800/80">
-                  <button
-                    onClick={() => {
-                      setSelectedViolation(v);
-                      setShowChallanModal(true);
-                    }}
-                    className="flex-1 flex items-center justify-center gap-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 py-1.5 text-[11px] font-semibold text-slate-300 transition"
-                  >
-                    <FileText className="h-3 w-3" />
-                    View E-Challan
-                  </button>
-
-                  {v.status !== 'ISSUED' && (
-                    <button
-                      onClick={() => handleSendChallan(v.id)}
-                      className="flex items-center justify-center gap-1 rounded bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 px-3 py-1.5 text-[11px] font-semibold text-emerald-400 transition"
-                    >
-                      <Send className="h-3 w-3" />
-                      Send
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+                      {v.status !== 'ISSUED' && (
+                        <button
+                          onClick={() => handleSendChallan(v.id)}
+                          className="py-1 px-2.5 rounded bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 font-semibold text-[11px] transition inline-flex items-center gap-1"
+                        >
+                          <Send className="h-3 w-3" /> Send
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </Card>
