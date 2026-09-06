@@ -508,14 +508,33 @@ export default function AnalyticsPage() {
 
                       {/* Mini Phase Split Bar */}
                       <div className="space-y-1 pt-1">
-                        <div className="flex justify-between text-[10px] text-slate-400">
-                          <span>EW Green: <strong className="text-emerald-400">{jd.phaseSplit?.ewGreenPct || 50}%</strong></span>
-                          <span>NS Green: <strong className="text-sky-400">{jd.phaseSplit?.nsGreenPct || 50}%</strong></span>
-                        </div>
-                        <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden flex">
-                          <div style={{ width: `${jd.phaseSplit?.ewGreenPct || 50}%` }} className="bg-emerald-500 h-full" />
-                          <div style={{ width: `${jd.phaseSplit?.nsGreenPct || 50}%` }} className="bg-sky-500 h-full" />
-                        </div>
+                        {jd.phaseSplit?.northGreenPct !== undefined ? (
+                          <>
+                            <div className="flex justify-between text-[9px] text-slate-400">
+                              <span>N: <strong className="text-emerald-400">{jd.phaseSplit.northGreenPct}%</strong></span>
+                              <span>E: <strong className="text-amber-400">{jd.phaseSplit.eastGreenPct}%</strong></span>
+                              <span>S: <strong className="text-cyan-400">{jd.phaseSplit.southGreenPct}%</strong></span>
+                              <span>W: <strong className="text-indigo-400">{jd.phaseSplit.westGreenPct}%</strong></span>
+                            </div>
+                            <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden flex">
+                              <div style={{ width: `${jd.phaseSplit.northGreenPct}%` }} className="bg-emerald-500 h-full" title="North" />
+                              <div style={{ width: `${jd.phaseSplit.eastGreenPct}%` }} className="bg-amber-500 h-full" title="East" />
+                              <div style={{ width: `${jd.phaseSplit.southGreenPct}%` }} className="bg-cyan-500 h-full" title="South" />
+                              <div style={{ width: `${jd.phaseSplit.westGreenPct}%` }} className="bg-indigo-500 h-full" title="West" />
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex justify-between text-[10px] text-slate-400">
+                              <span>EW Green: <strong className="text-emerald-400">{jd.phaseSplit?.ewGreenPct || 50}%</strong></span>
+                              <span>NS Green: <strong className="text-sky-400">{jd.phaseSplit?.nsGreenPct || 50}%</strong></span>
+                            </div>
+                            <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden flex">
+                              <div style={{ width: `${jd.phaseSplit?.ewGreenPct || 50}%` }} className="bg-emerald-500 h-full" />
+                              <div style={{ width: `${jd.phaseSplit?.nsGreenPct || 50}%` }} className="bg-sky-500 h-full" />
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   );
@@ -543,14 +562,15 @@ export default function AnalyticsPage() {
                 <Card title="Junction Throughput & Corridor Speed Comparison" subtitle="Processed vehicle volume (vph) vs average approach travel speed">
                   <div className="h-72 w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={allJunctionsComparisonData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <BarChart data={allJunctionsComparisonData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                         <XAxis dataKey="name" stroke="#64748b" fontSize={10} />
-                        <YAxis stroke="#64748b" fontSize={10} />
+                        <YAxis yAxisId="throughput" stroke="#10b981" fontSize={10} />
+                        <YAxis yAxisId="speed" orientation="right" stroke="#38bdf8" fontSize={10} domain={[0, 60]} />
                         <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }} />
                         <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                        <Bar dataKey="throughput" name="Throughput (veh/hr)" fill="#10b981" radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="speed" name="Approach Speed (km/h)" fill="#38bdf8" radius={[4, 4, 0, 0]} />
+                        <Bar yAxisId="throughput" dataKey="throughput" name="Throughput (veh/hr)" fill="#10b981" radius={[4, 4, 0, 0]} />
+                        <Bar yAxisId="speed" dataKey="speed" name="Approach Speed (km/h)" fill="#38bdf8" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>

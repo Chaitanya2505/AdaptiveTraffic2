@@ -37,28 +37,46 @@ except ImportError:
 # 4 Corridor Traffic Light IDs
 CORRIDOR_TLS = ["J_SVNIT", "J_GHODDOD", "J_MAJURA", "J_SAHARA"]
 
-# Weighted Route Categories
-ROUTE_CATEGORIES = {
-    "corridor_through": [
-        "r_MAIN_W_TO_E", "r_MAIN_E_TO_W",
-        "r_W_TO_GHODDOD_N", "r_W_TO_MAJURA_S", "r_E_TO_MAJURA_N", "r_E_TO_GHODDOD_S"
-    ],
-    "cross_feeder": [
-        "r_SVNIT_N_TO_S", "r_SVNIT_S_TO_N",
-        "r_GHODDOD_N_TO_S", "r_GHODDOD_S_TO_N",
-        "r_MAJURA_N_TO_S", "r_MAJURA_S_TO_N",
-        "r_SAHARA_N_TO_S", "r_SAHARA_S_TO_N"
-    ],
-    "turning_movements": [
-        "r_SVNIT_N_TO_E", "r_SVNIT_N_TO_W", "r_SVNIT_S_TO_E", "r_SVNIT_S_TO_W", "r_SVNIT_W_TO_N", "r_SVNIT_W_TO_S",
-        "r_GHODDOD_N_TO_E", "r_GHODDOD_N_TO_W", "r_GHODDOD_S_TO_E", "r_GHODDOD_S_TO_W",
-        "r_MAJURA_N_TO_E", "r_MAJURA_N_TO_W", "r_MAJURA_S_TO_E", "r_MAJURA_S_TO_W",
-        "r_SAHARA_N_TO_W", "r_SAHARA_N_TO_E", "r_SAHARA_S_TO_W", "r_SAHARA_S_TO_E", "r_SAHARA_E_TO_N", "r_SAHARA_E_TO_S"
-    ],
-    "brts_corridor": [
-        "r_BRTS_W_TO_E", "r_BRTS_E_TO_W"
-    ]
+# Dedicated Arterial BRTS Corridor Edges (Only these have Lane 0 as dedicated BRTS)
+BRTS_CORRIDOR_EDGES = {
+    "W_TO_SVNIT", "SVNIT_TO_GHODDOD", "GHODDOD_TO_MAJURA", "MAJURA_TO_SAHARA", "SAHARA_TO_E",
+    "E_TO_SAHARA", "SAHARA_TO_MAJURA", "MAJURA_TO_GHODDOD", "GHODDOD_TO_SVNIT", "SVNIT_TO_W"
 }
+
+# Gateway-balanced route mapping ensuring equalized 4-approach distribution across all 4 junctions:
+# Prevents single-gateway overloading (e.g. dumping 35%+ of all corridor traffic into SVNIT West).
+GATEWAY_ROUTES = {
+    "west_arterial": ["r_MAIN_W_TO_E", "r_W_TO_GHODDOD_N", "r_W_TO_MAJURA_S", "r_SVNIT_W_TO_N", "r_SVNIT_W_TO_S"],
+    "east_arterial": ["r_MAIN_E_TO_W", "r_E_TO_MAJURA_N", "r_E_TO_GHODDOD_S", "r_SAHARA_E_TO_N", "r_SAHARA_E_TO_S"],
+    "svnit_north":   ["r_SVNIT_N_TO_S", "r_SVNIT_N_TO_E", "r_SVNIT_N_TO_W"],
+    "svnit_south":   ["r_SVNIT_S_TO_N", "r_SVNIT_S_TO_E", "r_SVNIT_S_TO_W"],
+    "ghoddod_north": ["r_GHODDOD_N_TO_S", "r_GHODDOD_N_TO_E", "r_GHODDOD_N_TO_W"],
+    "ghoddod_south": ["r_GHODDOD_S_TO_N", "r_GHODDOD_S_TO_E", "r_GHODDOD_S_TO_W"],
+    "majura_north":  ["r_MAJURA_N_TO_S", "r_MAJURA_N_TO_E", "r_MAJURA_N_TO_W"],
+    "majura_south":  ["r_MAJURA_S_TO_N", "r_MAJURA_S_TO_E", "r_MAJURA_S_TO_W"],
+    "sahara_north":  ["r_SAHARA_N_TO_S", "r_SAHARA_N_TO_W", "r_SAHARA_N_TO_E"],
+    "sahara_south":  ["r_SAHARA_S_TO_N", "r_SAHARA_S_TO_W", "r_SAHARA_S_TO_E"],
+    "brts_west":     ["r_BRTS_W_TO_E"],
+    "brts_east":     ["r_BRTS_E_TO_W"]
+}
+
+# Balanced weights: 24% West Arterial, 24% East Arterial, 52% Cross-feeders evenly shared across all 8 legs (6.5% each)
+GATEWAY_WEIGHTS = {
+    "west_arterial": 0.20,
+    "east_arterial": 0.20,
+    "svnit_north":   0.065,
+    "svnit_south":   0.065,
+    "ghoddod_north": 0.065,
+    "ghoddod_south": 0.065,
+    "majura_north":  0.065,
+    "majura_south":  0.065,
+    "sahara_north":  0.065,
+    "sahara_south":  0.065,
+    "brts_west":     0.04,
+    "brts_east":     0.04
+}
+
+ROUTE_CATEGORIES = GATEWAY_ROUTES
 
 # Incoming lane mapping for the 4 corridor junctions
 JUNCTION_APPROACH_LANES = {
@@ -88,6 +106,69 @@ JUNCTION_APPROACH_LANES = {
     }
 }
 
+# 4-Phase Directional State Machine Constants (Single Approach Open at a Time)
+# Link indices across all 4 corridor junctions (30 links total):
+# - Indices 0..6 (7 links)   = North Approach (N_TO_*)
+# - Indices 7..14 (8 links)  = East Approach (MAJURA_TO_GHODDOD, etc.)
+# - Indices 15..21 (7 links) = South Approach (S_TO_*)
+# - Indices 22..29 (8 links) = West Approach (SVNIT_TO_GHODDOD, etc.)
+
+PHASE_NORTH_GREEN  = 0
+PHASE_NORTH_YELLOW = 1
+PHASE_EAST_GREEN   = 2
+PHASE_EAST_YELLOW  = 3
+PHASE_SOUTH_GREEN  = 4
+PHASE_SOUTH_YELLOW = 5
+PHASE_WEST_GREEN   = 6
+PHASE_WEST_YELLOW  = 7
+
+APPROACH_PHASE_STATES = {
+    PHASE_NORTH_GREEN:  "GGGGgggrrrrrrrrrrrrrrrrrrrrrrr",
+    PHASE_NORTH_YELLOW: "yyyyyyyrrrrrrrrrrrrrrrrrrrrrrr",
+    PHASE_EAST_GREEN:   "rrrrrrrGGGGGGggrrrrrrrrrrrrrrr",
+    PHASE_EAST_YELLOW:  "rrrrrrryyyyyyyyrrrrrrrrrrrrrrr",
+    PHASE_SOUTH_GREEN:  "rrrrrrrrrrrrrrrGGGGgggrrrrrrrr",
+    PHASE_SOUTH_YELLOW: "rrrrrrrrrrrrrrryyyyyyyrrrrrrrr",
+    PHASE_WEST_GREEN:   "rrrrrrrrrrrrrrrrrrrrrrGGGGGGgg",
+    PHASE_WEST_YELLOW:  "rrrrrrrrrrrrrrrrrrrrrryyyyyyyy"
+}
+
+PHASE_APPROACH_NAME = {
+    PHASE_NORTH_GREEN:  "NORTH",
+    PHASE_NORTH_YELLOW: "NORTH",
+    PHASE_EAST_GREEN:   "EAST",
+    PHASE_EAST_YELLOW:  "EAST",
+    PHASE_SOUTH_GREEN:  "SOUTH",
+    PHASE_SOUTH_YELLOW: "SOUTH",
+    PHASE_WEST_GREEN:   "WEST",
+    PHASE_WEST_YELLOW:  "WEST"
+}
+
+PHASE_NAMES = {
+    PHASE_NORTH_GREEN:  "NORTH GREEN",
+    PHASE_NORTH_YELLOW: "NORTH YELLOW",
+    PHASE_EAST_GREEN:   "EAST GREEN",
+    PHASE_EAST_YELLOW:  "EAST YELLOW",
+    PHASE_SOUTH_GREEN:  "SOUTH GREEN",
+    PHASE_SOUTH_YELLOW: "SOUTH YELLOW",
+    PHASE_WEST_GREEN:   "WEST GREEN",
+    PHASE_WEST_YELLOW:  "WEST YELLOW"
+}
+
+YELLOW_TO_NEXT_GREEN = {
+    PHASE_NORTH_YELLOW: PHASE_EAST_GREEN,
+    PHASE_EAST_YELLOW:  PHASE_SOUTH_GREEN,
+    PHASE_SOUTH_YELLOW: PHASE_WEST_GREEN,
+    PHASE_WEST_YELLOW:  PHASE_NORTH_GREEN
+}
+
+GREEN_TO_YELLOW = {
+    PHASE_NORTH_GREEN: PHASE_NORTH_YELLOW,
+    PHASE_EAST_GREEN:  PHASE_EAST_YELLOW,
+    PHASE_SOUTH_GREEN: PHASE_SOUTH_YELLOW,
+    PHASE_WEST_GREEN:  PHASE_WEST_YELLOW
+}
+
 class SumoService:
     _instance = None
 
@@ -112,6 +193,7 @@ class SumoService:
         self.scenario_mode = "adaptive"  # adaptive, fixed
         self.demand_preset = "peak"  # low, normal, heavy, peak, custom
         self.is_manual_tl = False
+        self.brts_priority_enabled = True
 
         # 5-minute automated run tracking
         self.is_5min_running = False
@@ -122,22 +204,23 @@ class SumoService:
         self.clients: Set[WebSocket] = set()
         self.loop_task = None
         self.geometry_cache = None
+        self.vehicle_static_cache: Dict[str, Dict[str, Any]] = {}
 
-        # Signal State Machine for 4 junctions
-        # Phases: 0 = EW Green, 1 = EW Yellow, 2 = NS Green, 3 = NS Yellow
+        # 4-Phase Directional State Machine (Single Direction Open at a Time)
+        # Sequence: NORTH (0) -> NORTH_YELLOW (1) -> EAST (2) -> EAST_YELLOW (3) -> SOUTH (4) -> SOUTH_YELLOW (5) -> WEST (6) -> WEST_YELLOW (7)
         self.signal_machines: Dict[str, Dict[str, Any]] = {}
         for jid in CORRIDOR_TLS:
             self.signal_machines[jid] = {
-                "phase": 0,               # 0: EW Green, 1: EW Yellow, 2: NS Green, 3: NS Yellow
+                "phase": PHASE_NORTH_GREEN,
                 "phase_start_time": 0.0,
-                "target_duration": 30.0,
-                "min_green": 12.0,
-                "max_green": 50.0,
+                "target_duration": 15.0,
+                "min_green": 10.0,
+                "max_green_feeder": 35.0,
+                "max_green_arterial": 45.0,
                 "yellow_duration": 3.5,
-                "transitioning_to": None,
                 "ew_pressure": 0.0,
                 "ns_pressure": 0.0,
-                "decision_reason": "Initial EW arterial progression",
+                "decision_reason": "Cycle initialization: North approach green",
                 "approach_metrics": {
                     "NORTH": {"vehicles": 0, "queue": 0, "speed": 0.0, "wait": 0.0, "pressure": 0.0},
                     "SOUTH": {"vehicles": 0, "queue": 0, "speed": 0.0, "wait": 0.0, "pressure": 0.0},
@@ -176,12 +259,13 @@ class SumoService:
 
             lanes_data = []
             for edge in net.getEdges():
+                edge_id = edge.getID()
                 for lane in edge.getLanes():
                     shape = [[float(coord[0]), float(coord[1])] for coord in lane.getShape()]
-                    is_brts = lane.getID().endswith("_0") and not lane.getID().startswith(":")
+                    is_brts = (edge_id in BRTS_CORRIDOR_EDGES) and lane.getID().endswith("_0") and not lane.getID().startswith(":")
                     lanes_data.append({
                         "id": lane.getID(),
-                        "edgeId": edge.getID(),
+                        "edgeId": edge_id,
                         "shape": shape,
                         "width": float(lane.getWidth()),
                         "speed": float(lane.getSpeed()),
@@ -240,11 +324,11 @@ class SumoService:
 
     def spawn_balanced_traffic(self, current_sim_time: float):
         """
-        Spawns realistic 4-way traffic using weighted OD matrix:
-        - 50% Through Corridor Spine (West -> East & East -> West)
-        - 20% North-South Cross-traffic
-        - 20% Turning movements (inflow/outflow)
-        - 10% Dedicated BRTS buses (running in both directions)
+        Spawns realistic 4-way traffic using balanced gateway-level distribution:
+        - 24% West Arterial Corridor (West Entry + BRTS)
+        - 24% East Arterial Corridor (East Entry + BRTS)
+        - 52% Cross-Street Feeders evenly balanced across North and South approaches of all 4 junctions (6.5% each)
+        Eliminates bottleneck overloading at single entry gateways (e.g. SVNIT West).
         """
         prob = (self.spawn_rate / 60.0) * 0.1  # probability per 0.1s step
         if random.random() >= prob:
@@ -253,17 +337,15 @@ class SumoService:
         self.veh_counter += 1
         veh_id = f"veh_{self.veh_counter}"
 
-        # Category selection
-        cat = random.choices(
-            ["corridor_through", "cross_feeder", "turning_movements", "brts_corridor"],
-            weights=[0.48, 0.22, 0.22, 0.08],
-            k=1
-        )[0]
+        # Balanced gateway selection
+        gateways = list(GATEWAY_WEIGHTS.keys())
+        weights = list(GATEWAY_WEIGHTS.values())
+        gw = random.choices(gateways, weights=weights, k=1)[0]
 
-        route_id = random.choice(ROUTE_CATEGORIES[cat])
+        route_id = random.choice(GATEWAY_ROUTES[gw])
 
         # Vehicle Type selection
-        if cat == "brts_corridor":
+        if "brts" in gw:
             type_id = "brts_bus"
         else:
             type_id = random.choices(
@@ -280,7 +362,7 @@ class SumoService:
     def compute_approach_pressures(self, tls_id: str) -> Dict[str, Any]:
         """
         Calculates real-time approach traffic pressure for North, South, East, West approaches.
-        Pressure = 2.0*Queue + 1.0*Waiting + 25.0*Occupancy + 0.8*Approaching
+        Uses normalized vehicle counts, halting queues, occupancy, and waiting time.
         """
         approaches = JUNCTION_APPROACH_LANES.get(tls_id, {})
         metrics = {}
@@ -310,13 +392,14 @@ class SumoService:
                     pass
 
             avg_spd = sum(speeds) / max(len(speeds), 1) if speeds else 35.0
-            pressure = (2.0 * total_queue) + (0.5 * (total_wait / max(total_veh, 1))) + (25.0 * total_occ) + (0.8 * total_veh)
+            avg_wait_sec = (total_wait / max(total_veh, 1)) if total_veh > 0 else 0.0
+            pressure = (3.0 * total_queue) + (0.6 * avg_wait_sec) + (35.0 * total_occ) + (0.5 * total_veh)
 
             metrics[app_name] = {
                 "vehicles": total_veh,
                 "queue": total_queue,
                 "speed": round(avg_spd, 1),
-                "wait": round(total_wait / max(total_veh, 1), 1),
+                "wait": round(avg_wait_sec, 1),
                 "pressure": round(pressure, 1)
             }
 
@@ -333,7 +416,7 @@ class SumoService:
         """
         Detects approaching BRTS buses within 85m and triggers priority signal extension/switch.
         """
-        if not self.brts_priority_enabled or self.scenario_mode not in ["adaptive_brts", "green_wave"]:
+        if not self.brts_priority_enabled or self.scenario_mode == "fixed":
             return None
 
         # Check West and East incoming BRTS lanes (lane 0)
@@ -367,85 +450,118 @@ class SumoService:
 
     def update_signal_controllers(self, current_time: float):
         """
-        Executes signal state machine for all 4 junctions:
-        1. Adaptive Traffic Control (Queue-Pressure dynamic signal timing)
-        2. Traditional Fixed-Time Control (Predefined signal cycle baseline)
+        Executes dynamic 4-phase signal state machine for all 4 junctions:
+        Every approach (North -> East -> South -> West) is guaranteed a turn with:
+        1. Single Approach Open at a time (Zero conflicting turning movements)
+        2. Dynamic Green Duration proportional to real-time approach queue:
+           duration = clamp(min_green + queue * 2.2 + vehicles * 0.5, min_green, max_green)
+        3. Gap-out early release: If active queue drops to 0 after min_green, advances to next phase.
+        4. BRTS Transit Signal Priority: Approaching Sitilink buses extend active green or advance clearance.
         """
         for jid in CORRIDOR_TLS:
             machine = self.signal_machines[jid]
             current_phase = machine["phase"]
             elapsed_in_phase = current_time - machine["phase_start_time"]
 
-            # Calculate live pressure and metrics
+            # Calculate live pressure and metrics for all 4 approaches
             p_data = self.compute_approach_pressures(jid)
             machine["approach_metrics"] = p_data["approaches"]
             machine["ew_pressure"] = p_data["ew_pressure"]
             machine["ns_pressure"] = p_data["ns_pressure"]
 
-            # 1. TRADITIONAL FIXED-TIME CONTROL (60s cycle: 30s EW Green, 3.5s Yellow, 23s NS Green, 3.5s Yellow)
+            app_name = PHASE_APPROACH_NAME[current_phase]
+            curr_app_metrics = machine["approach_metrics"].get(app_name, {})
+            curr_q = curr_app_metrics.get("queue", 0)
+            curr_v = curr_app_metrics.get("vehicles", 0)
+
+            # 1. FIXED-TIME CONTROL (Sequential 4-Phase: 15s North, 25s East, 15s South, 25s West, 3.5s Yellows)
             if self.scenario_mode == "fixed":
-                if current_phase == 0 and elapsed_in_phase >= 30.0:
-                    self._switch_tls_phase(jid, 1, current_time, "Fixed-Time: EW Green interval complete -> Yellow transition")
-                elif current_phase == 1 and elapsed_in_phase >= machine["yellow_duration"]:
-                    self._switch_tls_phase(jid, 2, current_time, "Fixed-Time: Yellow interval complete -> NS Green")
-                elif current_phase == 2 and elapsed_in_phase >= 23.0:
-                    self._switch_tls_phase(jid, 3, current_time, "Fixed-Time: NS Green interval complete -> Yellow transition")
-                elif current_phase == 3 and elapsed_in_phase >= machine["yellow_duration"]:
-                    self._switch_tls_phase(jid, 0, current_time, "Fixed-Time: Yellow interval complete -> EW Green")
+                fixed_green_times = {
+                    PHASE_NORTH_GREEN: 15.0,
+                    PHASE_EAST_GREEN: 25.0,
+                    PHASE_SOUTH_GREEN: 15.0,
+                    PHASE_WEST_GREEN: 25.0
+                }
+                if current_phase in GREEN_TO_YELLOW:
+                    limit = fixed_green_times[current_phase]
+                    if elapsed_in_phase >= limit:
+                        yellow_phase = GREEN_TO_YELLOW[current_phase]
+                        self._switch_tls_phase(jid, yellow_phase, current_time, f"Fixed-Time: {app_name} green complete ({limit}s) -> Yellow")
+                elif current_phase in YELLOW_TO_NEXT_GREEN:
+                    if elapsed_in_phase >= machine["yellow_duration"]:
+                        next_green = YELLOW_TO_NEXT_GREEN[current_phase]
+                        next_app = PHASE_APPROACH_NAME[next_green]
+                        machine["target_duration"] = fixed_green_times[next_green]
+                        self._switch_tls_phase(jid, next_green, current_time, f"Fixed-Time: Clearance complete -> {next_app} Green")
                 continue
 
-            # 2. ADAPTIVE TRAFFIC CONTROL (Coordinated Max-Pressure with Progression Bands)
-            # Handle Yellow clearance transitions
-            if current_phase == 1:  # EW Yellow -> Switch to NS Green after yellow duration
+            # 2. ADAPTIVE TRAFFIC CONTROL (Single Direction Open + Queue-Based Dynamic Green + Gap-Out)
+
+            # Handling Yellow Transitions -> Switch to next guaranteed approach in round-robin sequence
+            if current_phase in YELLOW_TO_NEXT_GREEN:
                 if elapsed_in_phase >= machine["yellow_duration"]:
-                    self._switch_tls_phase(jid, 2, current_time, f"Yellow clearance complete -> NS Green (Pressure: {p_data['ns_pressure']})")
+                    next_green = YELLOW_TO_NEXT_GREEN[current_phase]
+                    next_app = PHASE_APPROACH_NAME[next_green]
+                    next_metrics = machine["approach_metrics"].get(next_app, {})
+                    next_q = next_metrics.get("queue", 0)
+                    next_v = next_metrics.get("vehicles", 0)
+
+                    # Determine max green ceiling based on road hierarchy
+                    is_arterial = next_app in ["EAST", "WEST"]
+                    max_g = machine["max_green_arterial"] if is_arterial else machine["max_green_feeder"]
+                    min_g = machine["min_green"]
+
+                    # Calculate dynamic green time scaled to real-time queue
+                    dynamic_duration = round(max(min_g, min(max_g, min_g + (next_q * 2.2) + (next_v * 0.5))), 1)
+                    machine["target_duration"] = dynamic_duration
+
+                    self._switch_tls_phase(
+                        jid, next_green, current_time,
+                        f"Serving {next_app} (Queue: {next_q} veh, Active: {next_v}) -> Allocated {dynamic_duration}s [Min: {min_g}s, Max: {max_g}s]"
+                    )
                 continue
-            elif current_phase == 3:  # NS Yellow -> Switch to EW Green after yellow duration
-                if elapsed_in_phase >= machine["yellow_duration"]:
-                    self._switch_tls_phase(jid, 0, current_time, f"Yellow clearance complete -> EW Green (Pressure: {p_data['ew_pressure']})")
-                continue
 
-            # Coordinated Arterial Progression Offset (12s offset along 350m spacing at 45 km/h)
-            j_idx = CORRIDOR_TLS.index(jid)
-            prog_offset = j_idx * 12.0
-            cycle_time = 60.0
-            prog_pos = (current_time + prog_offset) % cycle_time
-            is_green_wave_window = prog_pos < 34.0
+            # Active Green Phase Handling
+            if current_phase in GREEN_TO_YELLOW:
+                yellow_phase = GREEN_TO_YELLOW[current_phase]
+                min_g = machine["min_green"]
+                target_dur = machine["target_duration"]
 
-            # Evaluate Green Phase Extensions vs Phase Transitions
-            if current_phase == 0:  # Currently EW Green
-                ew_p = p_data["ew_pressure"]
-                ns_p = p_data["ns_pressure"]
+                # BRTS Priority Extension/Preemption
+                brts_event = self.check_brts_priority(jid, current_time)
+                if brts_event and self.brts_priority_enabled:
+                    if app_name in ["EAST", "WEST"]:
+                        # Approaching BRTS in currently green arterial approach -> extend green up to 55s
+                        target_dur = min(55.0, target_dur + 10.0)
+                        machine["target_duration"] = target_dur
+                        machine["decision_reason"] = f"BRTS Priority Hold (Bus {brts_event['busId']} approaching, ETA {brts_event['eta']})"
+                    elif elapsed_in_phase >= min_g:
+                        # BRTS waiting on East/West while North/South is green -> expedite clearance
+                        self._switch_tls_phase(
+                            jid, yellow_phase, current_time,
+                            f"BRTS Priority Preemption (Bus {brts_event['busId']} on {brts_event['laneId']}, ETA {brts_event['eta']}) -> Yellow"
+                        )
+                        continue
 
-                if elapsed_in_phase < machine["min_green"]:
-                    machine["decision_reason"] = f"Holding EW Green (Min green hold: {machine['min_green'] - elapsed_in_phase:.1f}s remaining)"
-                elif is_green_wave_window and elapsed_in_phase < 42.0:
-                    # Hold green during arterial platoon arrival
-                    machine["decision_reason"] = f"Coordinated Arterial Green Wave Platoon Window ({prog_offset:.0f}s offset sync)"
-                elif ns_p > (ew_p + 10.0) and elapsed_in_phase >= machine["min_green"]:
-                    # Competing NS pressure is significantly higher -> Switch to Yellow
-                    self._switch_tls_phase(jid, 1, current_time, f"NS Pressure ({ns_p}) > EW ({ew_p}) -> Initiating Yellow transition")
-                elif elapsed_in_phase >= machine["max_green"]:
-                    # Max green ceiling reached -> Force phase switch to prevent NS starvation
-                    self._switch_tls_phase(jid, 1, current_time, f"EW Max Green ({machine['max_green']}s) reached -> Switching to NS")
+                # Rule 1: Always guarantee min_green to avoid rapid cycling
+                if elapsed_in_phase < min_g:
+                    machine["decision_reason"] = f"{app_name} Green Hold (Min: {min_g - elapsed_in_phase:.1f}s remaining, Queue: {curr_q})"
+                # Rule 2: Max green ceiling reached -> yield to next approach to guarantee everyone gets a turn
+                elif elapsed_in_phase >= target_dur:
+                    self._switch_tls_phase(
+                        jid, yellow_phase, current_time,
+                        f"{app_name} Green Complete ({target_dur}s elapsed) -> Yielding to next approach"
+                    )
+                # Rule 3: Gap-Out - Queue has emptied and min_green passed -> yield early to prevent idle intersection
+                elif curr_q == 0 and elapsed_in_phase >= (min_g + 2.0):
+                    next_app = PHASE_APPROACH_NAME[YELLOW_TO_NEXT_GREEN[yellow_phase]]
+                    next_q = machine["approach_metrics"].get(next_app, {}).get("queue", 0)
+                    self._switch_tls_phase(
+                        jid, yellow_phase, current_time,
+                        f"{app_name} Gap-out (Queue cleared to 0) -> Yielding early to {next_app} (Queue: {next_q})"
+                    )
                 else:
-                    machine["decision_reason"] = f"EW Pressure ({ew_p}) dominant -> Extended Green"
-
-            elif current_phase == 2:  # Currently NS Green
-                ew_p = p_data["ew_pressure"]
-                ns_p = p_data["ns_pressure"]
-
-                if elapsed_in_phase < machine["min_green"]:
-                    machine["decision_reason"] = f"Holding NS Green (Min green hold: {machine['min_green'] - elapsed_in_phase:.1f}s remaining)"
-                elif is_green_wave_window and ew_p > 8.0:
-                    # Inbound arterial platoon approaching -> Clear NS and return to EW
-                    self._switch_tls_phase(jid, 3, current_time, "Arterial Platoon Inbound -> Preempting NS Green for EW Corridor Wave")
-                elif ew_p > (ns_p + 10.0) and elapsed_in_phase >= machine["min_green"]:
-                    self._switch_tls_phase(jid, 3, current_time, f"EW Pressure ({ew_p}) > NS ({ns_p}) -> Initiating Yellow transition")
-                elif elapsed_in_phase >= machine["max_green"]:
-                    self._switch_tls_phase(jid, 3, current_time, f"NS Max Green ({machine['max_green']}s) reached -> Switching to EW")
-                else:
-                    machine["decision_reason"] = f"NS Pressure ({ns_p}) dominant over EW ({ew_p}) -> Extended Green"
+                    machine["decision_reason"] = f"{app_name} Active Discharge (Queue: {curr_q} veh, Remaining: {max(0.0, target_dur - elapsed_in_phase):.1f}s)"
 
     def _switch_tls_phase(self, tls_id: str, new_phase: int, current_time: float, reason: str):
         """Sets the SUMO traffic light phase via TraCI and updates internal state machine."""
@@ -454,10 +570,12 @@ class SumoService:
         machine["phase_start_time"] = current_time
         machine["decision_reason"] = reason
 
-        try:
-            traci.trafficlight.setPhase(tls_id, new_phase)
-        except Exception as e:
-            print(f"Error setting phase for {tls_id}: {e}")
+        state_mask = APPROACH_PHASE_STATES.get(new_phase)
+        if state_mask and self.traci_started:
+            try:
+                traci.trafficlight.setRedYellowGreenState(tls_id, state_mask)
+            except Exception as e:
+                print(f"Error setting state mask for {tls_id}: {e}")
 
     def get_simulation_state(self) -> Dict[str, Any]:
         """Aggregates and formats the dynamic simulation state."""
@@ -486,18 +604,37 @@ class SumoService:
         vehicles_data = []
         active_ids = traci.vehicle.getIDList()
 
+        # Prune vehicle static cache when tracking many vehicles
+        if len(self.vehicle_static_cache) > 800:
+            active_set = set(active_ids)
+            self.vehicle_static_cache = {k: v for k, v in self.vehicle_static_cache.items() if k in active_set}
+
         for veh_id in active_ids:
             try:
                 x, y = traci.vehicle.getPosition(veh_id)
                 angle = traci.vehicle.getAngle(veh_id)
                 speed = traci.vehicle.getSpeed(veh_id)
-                type_id = traci.vehicle.getTypeID(veh_id)
                 lane_id = traci.vehicle.getLaneID(veh_id)
                 wait_time = traci.vehicle.getWaitingTime(veh_id)
-                length = traci.vehicle.getLength(veh_id)
-                width = traci.vehicle.getWidth(veh_id)
+                accum_wait = traci.vehicle.getAccumulatedWaitingTime(veh_id)
 
-                is_brts_lane = lane_id.endswith("_0") and not lane_id.startswith(":")
+                # Static attribute cache (eliminates 3 redundant socket queries per vehicle per step)
+                if veh_id not in self.vehicle_static_cache:
+                    type_id = traci.vehicle.getTypeID(veh_id)
+                    length = traci.vehicle.getLength(veh_id)
+                    width = traci.vehicle.getWidth(veh_id)
+                    self.vehicle_static_cache[veh_id] = {
+                        "type": type_id,
+                        "length": float(length),
+                        "width": float(width)
+                    }
+                v_static = self.vehicle_static_cache[veh_id]
+                type_id = v_static["type"]
+                length = v_static["length"]
+                width = v_static["width"]
+
+                v_edge = lane_id.rsplit("_", 1)[0] if "_" in lane_id else lane_id
+                is_brts_lane = (v_edge in BRTS_CORRIDOR_EDGES) and lane_id.endswith("_0") and not lane_id.startswith(":")
                 is_intruding = is_brts_lane and type_id not in ["brts_bus", "bus"]
 
                 vehicles_data.append({
@@ -509,6 +646,7 @@ class SumoService:
                     "type": type_id,
                     "laneId": lane_id,
                     "waitingTime": float(wait_time),
+                    "accumulatedWaitingTime": float(accum_wait),
                     "length": float(length),
                     "width": float(width),
                     "isIntruding": is_intruding
@@ -525,24 +663,42 @@ class SumoService:
                 mach = self.signal_machines[tls_id]
                 cur_phase = mach["phase"]
                 elapsed = sim_time - mach["phase_start_time"]
-                phase_name = "EW GREEN" if cur_phase == 0 else "EW YELLOW" if cur_phase == 1 else "NS GREEN" if cur_phase == 2 else "NS YELLOW"
+                phase_name = PHASE_NAMES.get(cur_phase, "NORTH GREEN")
+                active_approach = PHASE_APPROACH_NAME.get(cur_phase, "NORTH")
+                is_yellow = cur_phase in [1, 3, 5, 7]
 
                 # Duration remaining estimate
-                dur_remaining = max(0.0, (mach["target_duration"] if cur_phase in [0, 2] else mach["yellow_duration"]) - elapsed)
+                dur_remaining = max(0.0, (mach["yellow_duration"] if is_yellow else mach["target_duration"]) - elapsed)
+
+                active_color = "#f59e0b" if is_yellow else "#10b981"
+                approach_colors = {
+                    "NORTH": active_color if active_approach == "NORTH" else "#ef4444",
+                    "EAST":  active_color if active_approach == "EAST"  else "#ef4444",
+                    "SOUTH": active_color if active_approach == "SOUTH" else "#ef4444",
+                    "WEST":  active_color if active_approach == "WEST"  else "#ef4444"
+                }
+
+                current_state_str = traci.trafficlight.getRedYellowGreenState(tls_id) if self.traci_started else APPROACH_PHASE_STATES.get(cur_phase, "")
 
                 tls_states[tls_id] = {
-                    "state": traci.trafficlight.getRedYellowGreenState(tls_id),
+                    "state": current_state_str,
                     "phase": cur_phase,
                     "phaseName": phase_name,
+                    "activeApproach": active_approach,
+                    "approachColors": approach_colors,
                     "elapsedInPhase": round(elapsed, 1),
-                    "remainingSec": round(dur_remaining, 1)
+                    "remainingSec": round(dur_remaining, 1),
+                    "targetDuration": mach["target_duration"]
                 }
 
                 signal_intel[tls_id] = {
                     "id": tls_id,
                     "phase": cur_phase,
                     "phaseName": phase_name,
+                    "activeApproach": active_approach,
+                    "approachColors": approach_colors,
                     "remainingSec": round(dur_remaining, 1),
+                    "targetDuration": mach["target_duration"],
                     "ewPressure": mach["ew_pressure"],
                     "nsPressure": mach["ns_pressure"],
                     "reason": mach["decision_reason"],
@@ -603,11 +759,15 @@ class SumoService:
         live_heatmaps = simulation_analytics.cached_heatmaps or simulation_analytics._generate_spatial_heatmaps()
         live_bottlenecks = simulation_analytics.cached_bottlenecks or simulation_analytics._calculate_dynamic_bottlenecks()
         live_junctions = simulation_analytics.cached_junctions or simulation_analytics._generate_detailed_junctions_analytics(max(sim_time, 1.0))
+        latest_pt = simulation_analytics.timeline[-1] if simulation_analytics.timeline else None
+        dyn_wait = round(latest_pt["avgWaitTime"], 1) if latest_pt else 0.0
+        dyn_queue = latest_pt["maxQueue"] if latest_pt else 0
+
         live_whatif = simulation_analytics.cached_whatif or simulation_analytics._compute_ground_truth_comparison(
             cur_throughput=round((len(simulation_analytics.completed_vehicles) / max(sim_time, 1.0)) * 3600, 1),
             cur_speed=round(avg_speed * 3.6, 1),
-            cur_wait=0.0,
-            cur_queue=0,
+            cur_wait=dyn_wait,
+            cur_queue=dyn_queue,
             cur_co2=round(simulation_analytics.total_co2_grams / 1000.0, 2),
             cur_fuel=round(simulation_analytics.total_fuel_ml / 1000.0, 2),
             cur_completed=len(simulation_analytics.completed_vehicles),
@@ -670,6 +830,11 @@ class SumoService:
         try:
             traci.start(sumo_cmd)
             traci.simulationStep()
+            for jid in CORRIDOR_TLS:
+                try:
+                    traci.trafficlight.setRedYellowGreenState(jid, APPROACH_PHASE_STATES[PHASE_NORTH_GREEN])
+                except Exception:
+                    pass
             self.traci_started = True
             self.is_initialized = True
             print("TraCI initialized successfully with 4-junction corridor network.")
@@ -711,16 +876,21 @@ class SumoService:
         self.is_paused = True
         self.is_5min_running = False
         self.live_alerts = []
+        self.vehicle_static_cache.clear()
         simulation_analytics.reset()
 
         for jid in CORRIDOR_TLS:
-            self.signal_machines[jid]["phase"] = 0
+            self.signal_machines[jid]["phase"] = PHASE_NORTH_GREEN
             self.signal_machines[jid]["phase_start_time"] = 0.0
+            self.signal_machines[jid]["target_duration"] = 15.0
+            self.signal_machines[jid]["decision_reason"] = "Cycle initialization: North approach green"
 
         if self.traci_started:
             try:
                 traci.load(["-c", self.sumocfg_path])
                 traci.simulationStep()
+                for jid in CORRIDOR_TLS:
+                    traci.trafficlight.setRedYellowGreenState(jid, APPROACH_PHASE_STATES[PHASE_NORTH_GREEN])
                 print("SUMO reload complete.")
             except Exception as e:
                 print(f"Error reloading SUMO: {e}")
@@ -851,7 +1021,8 @@ class SumoService:
                     "scenarioMode": self.scenario_mode,
                     "demandPreset": self.demand_preset,
                     "isManualTl": self.is_manual_tl,
-                    "is5MinRunning": self.is_5min_running
+                    "is5MinRunning": self.is_5min_running,
+                    "brtsPriorityEnabled": self.brts_priority_enabled
                 }
             })
 
@@ -900,6 +1071,8 @@ class SumoService:
                 self.demand_preset = "custom"
             elif msg_type == "set_speed_multiplier":
                 self.speed_multiplier = max(0.1, float(msg.get("value", 1.0)))
+            elif msg_type == "set_brts_priority":
+                self.brts_priority_enabled = bool(msg.get("enabled", True))
 
             # Broadcast configuration update
             config_payload = json.dumps({
@@ -911,7 +1084,8 @@ class SumoService:
                     "scenarioMode": self.scenario_mode,
                     "demandPreset": self.demand_preset,
                     "isManualTl": self.is_manual_tl,
-                    "is5MinRunning": self.is_5min_running
+                    "is5MinRunning": self.is_5min_running,
+                    "brtsPriorityEnabled": self.brts_priority_enabled
                 }
             })
             await asyncio.gather(

@@ -287,53 +287,56 @@ export default function SimulationPage() {
     const scale = baseScaleRef.current * zoomLevelRef.current;
 
     for (const [tlsId, tlsData] of Object.entries(sim.tls)) {
-      const curPhase = tlsData.phase; // 0 = EW Green, 1 = EW Yellow, 2 = NS Green, 3 = NS Yellow
+      const curPhase = tlsData.phase ?? 0;
       const junc = CORRIDOR_JUNCTIONS.find(j => j.id === tlsId);
       if (!junc) continue;
 
       const pt = worldToScreen(junc.x, junc.y, canvas);
 
-      // Determine active EW and NS colors
-      const ewColor = curPhase === 0 ? "#10b981" : curPhase === 1 ? "#f59e0b" : "#ef4444";
-      const nsColor = curPhase === 2 ? "#10b981" : curPhase === 3 ? "#f59e0b" : "#ef4444";
+      // Determine colors for 4 individual approaches
+      const appColors = tlsData.approachColors || {
+        NORTH: curPhase === 0 ? "#10b981" : curPhase === 1 ? "#f59e0b" : "#ef4444",
+        EAST:  curPhase === 2 ? "#10b981" : curPhase === 3 ? "#f59e0b" : "#ef4444",
+        SOUTH: curPhase === 4 ? "#10b981" : curPhase === 5 ? "#f59e0b" : "#ef4444",
+        WEST:  curPhase === 6 ? "#10b981" : curPhase === 7 ? "#f59e0b" : "#ef4444"
+      };
 
-      // 1. East-West Signal Head (Horizontal)
-      ctx.fillStyle = "#090d16";
-      ctx.strokeStyle = ewColor;
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      ctx.roundRect(pt.x - 26 * scale, pt.y - 10 * scale, 52 * scale, 20 * scale, 5 * scale);
-      ctx.fill();
-      ctx.stroke();
+      // Helper function to draw a single directional signal head
+      const drawSignalHead = (x, y, w, h, color, isVertical = false) => {
+        const isActive = color !== "#ef4444";
+        ctx.fillStyle = "#090d16";
+        ctx.strokeStyle = color;
+        ctx.lineWidth = isActive ? 2.0 : 1.2;
+        ctx.beginPath();
+        ctx.roundRect(x - w / 2, y - h / 2, w, h, 4 * scale);
+        ctx.fill();
+        ctx.stroke();
 
-      // EW Light Bulbs
-      ctx.fillStyle = ewColor;
-      ctx.shadowColor = ewColor;
-      ctx.shadowBlur = 10 * scale;
-      ctx.beginPath();
-      ctx.arc(pt.x - 14 * scale, pt.y, 5 * scale, 0, 2 * Math.PI);
-      ctx.arc(pt.x + 14 * scale, pt.y, 5 * scale, 0, 2 * Math.PI);
-      ctx.fill();
-      ctx.shadowBlur = 0;
+        // Light bulb with glow
+        ctx.fillStyle = color;
+        if (isActive) {
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 12 * scale;
+        } else {
+          ctx.shadowBlur = 0;
+        }
+        ctx.beginPath();
+        ctx.arc(x, y, 4.5 * scale, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      };
 
-      // 2. North-South Signal Head (Vertical)
-      ctx.fillStyle = "#090d16";
-      ctx.strokeStyle = nsColor;
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      ctx.roundRect(pt.x - 10 * scale, pt.y - 26 * scale, 20 * scale, 52 * scale, 5 * scale);
-      ctx.fill();
-      ctx.stroke();
+      // 1. North Approach Signal Head (Top Entrance)
+      drawSignalHead(pt.x, pt.y - 20 * scale, 22 * scale, 14 * scale, appColors.NORTH);
 
-      // NS Light Bulbs
-      ctx.fillStyle = nsColor;
-      ctx.shadowColor = nsColor;
-      ctx.shadowBlur = 10 * scale;
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y - 14 * scale, 5 * scale, 0, 2 * Math.PI);
-      ctx.arc(pt.x, pt.y + 14 * scale, 5 * scale, 0, 2 * Math.PI);
-      ctx.fill();
-      ctx.shadowBlur = 0;
+      // 2. South Approach Signal Head (Bottom Entrance)
+      drawSignalHead(pt.x, pt.y + 20 * scale, 22 * scale, 14 * scale, appColors.SOUTH);
+
+      // 3. East Approach Signal Head (Right Entrance)
+      drawSignalHead(pt.x + 22 * scale, pt.y, 14 * scale, 22 * scale, appColors.EAST, true);
+
+      // 4. West Approach Signal Head (Left Entrance)
+      drawSignalHead(pt.x - 22 * scale, pt.y, 14 * scale, 22 * scale, appColors.WEST, true);
     }
   };
 
