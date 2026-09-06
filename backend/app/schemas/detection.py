@@ -26,4 +26,5 @@ class VisionDetectResponse(BaseModel):
     detections: List[DetectionResponse]
     queue_lengths: dict  # e.g., {"L1": {"vehicles": 3, "meters": 15}, ...}
     violations_detected: int
+    ocr_failures: int = 0  # violations logged with an unreadable plate (poor video quality, etc.)
     inference_time_ms: Optional[float] = None

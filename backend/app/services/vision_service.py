@@ -423,6 +423,70 @@ class VehicleDetector:
 # Global detector instance
 detector = VehicleDetector(force_mock=False)
 
+# --- ANPR (Automatic Number Plate Recognition) helpers ---
+PLATE_UNREADABLE = "UNREADABLE"
+PLATE_MIN_LEN = 6
+PLATE_MAX_LEN = 11
+OCR_CONF_THRESHOLD = 0.40
+
+
+def _is_plausible_plate(text: str) -> bool:
+    """Loose sanity check that OCR text could plausibly be a license plate
+    (mixed letters+digits, sensible length) rather than random noise."""
+    if not text or not (PLATE_MIN_LEN <= len(text) <= PLATE_MAX_LEN):
+        return False
+    has_letter = any(c.isalpha() for c in text)
+    has_digit = any(c.isdigit() for c in text)
+    return has_letter and has_digit
+
+
+def read_license_plate(crop: np.ndarray) -> "tuple[Optional[str], Optional[str]]":
+    """
+    Attempts to OCR a license plate from a cropped vehicle image using EasyOCR.
+    Returns (plate_text, error_reason) - exactly one of the two is None.
+    Never fabricates a plate: if the plate genuinely can't be read, the
+    reason is returned so the caller can record it as an explicit error.
+    """
+    if not HAS_EASYOCR or reader is None:
+        return None, "OCR engine (EasyOCR) not available on this server"
+    if crop is None or crop.size == 0:
+        return None, "Vehicle crop region was empty (bad bounding box)"
+
+    # Upscale small/low-res crops so OCR has enough resolution to work with
+    h, w = crop.shape[:2]
+    if w < 200:
+        scale = 200 / max(1, w)
+        crop = cv2.resize(crop, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_CUBIC)
+
+    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    enhanced = clahe.apply(gray)
+
+    try:
+        ocr_results = reader.readtext(
+            enhanced, detail=1, allowlist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        )
+    except Exception as e:
+        return None, f"OCR engine error: {e}"
+
+    if not ocr_results:
+        return None, "No text detected on plate (low video quality / occlusion / distance)"
+
+    best_text, best_conf = "", 0.0
+    for _, text, conf in ocr_results:
+        cleaned = "".join(ch for ch in text if ch.isalnum()).upper()
+        if cleaned and conf > best_conf:
+            best_text, best_conf = cleaned, conf
+
+    if best_conf < OCR_CONF_THRESHOLD:
+        return None, f"Plate text confidence too low ({best_conf:.2f}) - likely poor video quality"
+
+    if not _is_plausible_plate(best_text):
+        return None, f"Detected text '{best_text}' does not match a valid plate format"
+
+    return best_text, None
+
+
 class VisionService:
     @staticmethod
     async def process_frame(db: AsyncSession, junction_id: str, image_bytes: bytes) -> dict:
@@ -465,27 +529,20 @@ class VisionService:
             detections_to_create.append(det)
             
             if brts_lane and lane_id == brts_lane and d["vehicle_class"] != "bus":
-                plate = None
-                if HAS_EASYOCR and reader is not None:
-                    x1, y1, x2, y2 = [int(v) for v in d["bbox"]]
-                    crop = image[max(0, y1):min(h, y2), max(0, x1):min(w, x2)]
-                    if crop.size > 0:
-                        ocr_res = reader.readtext(crop)
-                        if ocr_res:
-                            best_text = max(ocr_res, key=lambda x: x[2])[1]
-                            plate = "".join(e for e in best_text if e.isalnum()).upper()
-                
-                if not plate or len(plate) < 4:
-                    region_code = random.randint(1, 38)
-                    letters = f"{chr(random.randint(65, 90))}{chr(random.randint(65, 90))}"
-                    number = random.randint(1000, 9999)
-                    plate = f"GJ-{region_code:02d}-{letters}-{number}"
-                
+                x1, y1, x2, y2 = [int(v) for v in d["bbox"]]
+                crop = image[max(0, y1):min(h, y2), max(0, x1):min(w, x2)]
+                plate, plate_error = read_license_plate(crop)
+
+                if plate_error:
+                    print(f"[VISION SERVICE] ANPR failed for a vehicle at junction {junction_id}: {plate_error}")
+
                 violation = Violation(
                     junction_id=junction_id,
                     vehicle_class=d["vehicle_class"],
-                    license_plate=plate,
-                    status="active"
+                    # Never invent a plate: fall back to an explicit unreadable marker so
+                    # operators can tell a real capture apart from a failed one.
+                    license_plate=plate if plate else PLATE_UNREADABLE,
+                    status="active" if plate else "ocr_failed"
                 )
                 violations_to_create.append(violation)
 
@@ -538,5 +595,6 @@ class VisionService:
             "detections": detections_to_create,
             "queue_lengths": queue_lengths,
             "violations_detected": len(violations_to_create),
+            "ocr_failures": sum(1 for v in violations_to_create if v.status == "ocr_failed"),
             "inference_time_ms": inference_time_ms
         }

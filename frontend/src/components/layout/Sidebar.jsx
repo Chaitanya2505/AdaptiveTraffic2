@@ -7,9 +7,9 @@ import {
   AlertTriangle, 
   LineChart, 
   Sparkles, 
-  Cpu, 
+  Cpu,
   ShieldAlert,
-  X 
+  X
 } from 'lucide-react';
 
 const navItems = [

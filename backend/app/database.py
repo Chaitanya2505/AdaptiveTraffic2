@@ -42,6 +42,7 @@ async def init_db():
     from app.models.signal import Signal
     from app.models.violation import Violation
     from app.models.user import User
+    from app.models.brts import BRTSViolation
     
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
