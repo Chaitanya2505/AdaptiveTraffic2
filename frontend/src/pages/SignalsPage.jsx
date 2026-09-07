@@ -396,9 +396,7 @@ export default function SignalsPage() {
                 const isAllGreenMode = masterMode === 'ALL_GREEN_HOLD';
                 const isAllRedMode = masterMode === 'ALL_RED_HOLD';
                 const isScanning = masterMode === 'SCANNING_TRAFFIC';
-                
-                const isGreen = (isCurrentActive && lightColor === 'GREEN') || isAllGreenMode;
-                const isYellow = isCurrentActive && lightColor === 'YELLOW';
+                const isWaiting = masterMode === 'WAITING';
                 
                 // Fetch dynamic telemetry or fallback to N/A
                 const laneTelemetry = telemetry[p.id];
