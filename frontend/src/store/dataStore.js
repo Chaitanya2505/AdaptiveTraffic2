@@ -18,7 +18,20 @@ export const useDataStore = create((set, get) => ({
     { id: 3, junction_id: 'J-003', phase: 'LANE_1_NORTH', duration: 60, mode: 'MANUAL', timestamp: new Date().toISOString() }
   ],
 
-  // Shared Vision Sensing Telemetry State
+  // Shared Vision Sensing Telemetry State & Feeds
+  visionLaneFeeds: {
+    0: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
+    1: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
+    2: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
+    3: { file: null, preview: null, raw: null, type: null, isCustomUpload: false }
+  },
+
+  visionAnalysis: {
+    isAnalyzed: false,
+    detectionResult: null,
+    inferenceMetadata: null,
+  },
+
   // Real-world IRC:106-1990 PCE (Passenger Car Equivalent) Queue Length Engine
   visionSignalState: {
     activeLaneId: 'LANE_1_NORTH',
@@ -52,6 +65,16 @@ export const useDataStore = create((set, get) => ({
   setVisionSignalState: (updater) => set((state) => {
     const nextVal = typeof updater === 'function' ? updater(state.visionSignalState) : { ...state.visionSignalState, ...updater };
     return { visionSignalState: nextVal };
+  }),
+
+  setVisionLaneFeeds: (updater) => set((state) => {
+    const nextVal = typeof updater === 'function' ? updater(state.visionLaneFeeds) : { ...state.visionLaneFeeds, ...updater };
+    return { visionLaneFeeds: nextVal };
+  }),
+
+  setVisionAnalysis: (updater) => set((state) => {
+    const nextVal = typeof updater === 'function' ? updater(state.visionAnalysis) : { ...state.visionAnalysis, ...updater };
+    return { visionAnalysis: nextVal };
   }),
 
   getJunctionById: (id) => get().junctions.find(j => j.id === id),

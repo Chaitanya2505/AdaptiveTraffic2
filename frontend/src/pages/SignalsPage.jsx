@@ -109,66 +109,7 @@ export default function SignalsPage() {
   const masterMode = visionSignalState?.masterMode || 'DYNAMIC_CYCLE';
   const statusMessage = visionSignalState?.statusMessage || 'Vision AI Dynamic Cycle Active';
 
-  // Live Countdown Sequence Engine
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setVisionSignalState((prev) => {
-        if (!prev.isAutoCycleActive) return prev;
-
-        if (prev.remainingSec > 0) {
-          return { ...prev, remainingSec: prev.remainingSec - 1 };
-        }
-
-        // Time's up
-        if (prev.masterMode === 'ALL_RED_HOLD' || prev.masterMode === 'ALL_GREEN_HOLD') {
-          // Resume normal cycle at Lane 1
-          const l1Duration = prev.laneTimers?.['LANE_1_NORTH']?.duration || 30;
-          return {
-            ...prev,
-            masterMode: 'DYNAMIC_CYCLE',
-            activeLaneId: 'LANE_1_NORTH',
-            activeLaneIndex: 0,
-            lightColor: 'GREEN',
-            remainingSec: l1Duration,
-            totalDuration: l1Duration,
-            statusMessage: 'Vision AI Dynamic Cycle Resumed'
-          };
-        }
-
-        if (prev.masterMode === 'DYNAMIC_CYCLE') {
-          if (prev.lightColor === 'GREEN') {
-            // Transition to Yellow
-            return { ...prev, lightColor: 'YELLOW', remainingSec: 3 };
-          } else {
-            // Move to next lane
-            const phases = ['LANE_1_NORTH', 'LANE_2_SOUTH', 'LANE_3_EAST', 'LANE_4_WEST'];
-            let nextIndex = (phases.indexOf(prev.activeLaneId) + 1) % 4;
-            
-            // Skip lanes with duration 0 (set to RED)
-            let attempts = 0;
-            while ((prev.laneTimers?.[phases[nextIndex]]?.duration || 0) <= 0 && attempts < 4) {
-              nextIndex = (nextIndex + 1) % 4;
-              attempts++;
-            }
-            
-            const nextLane = phases[nextIndex];
-            const nextDuration = prev.laneTimers?.[nextLane]?.duration || 30;
-
-            return {
-              ...prev,
-              activeLaneId: nextLane,
-              activeLaneIndex: nextIndex,
-              lightColor: 'GREEN',
-              remainingSec: nextDuration,
-              totalDuration: nextDuration
-            };
-          }
-        }
-        return prev;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [setVisionSignalState]);
+  // Live Countdown Sequence Engine is handled globally by App.jsx
 
   // Set single lane Green duration
   const handleSetGreen = (laneId) => {
@@ -451,18 +392,22 @@ export default function SignalsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {SIGNAL_PHASES.map((p) => {
                 const IconComponent = p.icon;
-                const isCurrentActive = activePhase === p.id && masterMode === 'DYNAMIC_CYCLE';
+                const isCurrentActive = activePhase === p.id && (masterMode === 'DYNAMIC_CYCLE' || masterMode === 'ALL_GREEN_HOLD' || masterMode === 'SCANNING_TRAFFIC');
                 const isAllGreenMode = masterMode === 'ALL_GREEN_HOLD';
                 const isAllRedMode = masterMode === 'ALL_RED_HOLD';
                 const isScanning = masterMode === 'SCANNING_TRAFFIC';
-                const isWaiting = masterMode === 'WAITING';
+                
+                const isGreen = (isCurrentActive && lightColor === 'GREEN') || isAllGreenMode;
+                const isYellow = isCurrentActive && lightColor === 'YELLOW';
                 
                 // Fetch dynamic telemetry or fallback to N/A
                 const laneTelemetry = telemetry[p.id];
+                const visionData = visionSignalState?.laneTimers?.[p.id];
+                
                 const displayData = {
-                  vehicles: laneTelemetry?.vehicles ?? 'N/A',
-                  meters: laneTelemetry?.meters ?? 'N/A',
-                  duration: visionSignalState?.laneTimers?.[p.id]?.duration ?? 'N/A',
+                  vehicles: laneTelemetry?.vehicles ?? visionData?.vehicles ?? 'N/A',
+                  meters: laneTelemetry?.meters ?? visionData?.meters ?? 'N/A',
+                  duration: isCurrentActive ? remainingSec : (visionData?.duration ?? 'N/A'),
                   cars: laneTelemetry?.cars ?? 'N/A',
                   bikes: laneTelemetry?.bikes ?? 'N/A',
                   autos: laneTelemetry?.autos ?? 'N/A',

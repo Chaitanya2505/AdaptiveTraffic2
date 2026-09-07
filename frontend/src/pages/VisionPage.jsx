@@ -36,21 +36,17 @@ export default function VisionPage() {
   const visionSignalState = useDataStore((state) => state.visionSignalState);
   const setVisionSignalState = useDataStore((state) => state.setVisionSignalState);
 
+  const laneFeeds = useDataStore((state) => state.visionLaneFeeds);
+  const setLaneFeeds = useDataStore((state) => state.setVisionLaneFeeds);
+
   const [selectedJunction, setSelectedJunction] = useState('J-001');
 
   const DEFAULT_TEST_VIDEO = '/sample_cctv/brt_sample.mp4';
 
-  // Feeds state initialized with empty lanes
-  const [laneFeeds, setLaneFeeds] = useState({
-    0: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
-    1: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
-    2: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
-    3: { file: null, preview: null, raw: null, type: null, isCustomUpload: false }
-  });
+  const visionAnalysis = useDataStore((state) => state.visionAnalysis);
+  const setVisionAnalysis = useDataStore((state) => state.setVisionAnalysis);
+  const { isAnalyzed, detectionResult, inferenceMetadata } = visionAnalysis;
 
-  const [isAnalyzed, setIsAnalyzed] = useState(false);
-  const [detectionResult, setDetectionResult] = useState(null);
-  const [inferenceMetadata, setInferenceMetadata] = useState(null);
   const { loading, request } = useApi();
 
   const handleLaneFileChange = (idx, file) => {
@@ -69,7 +65,7 @@ export default function VisionPage() {
       }
     }));
     setVisionSignalState((prev) => ({ ...prev, isAutoCycleActive: false }));
-    setIsAnalyzed(false);
+    setVisionAnalysis({ isAnalyzed: false });
   };
 
   const handleRemoveLaneFeed = (idx) => {
@@ -78,7 +74,7 @@ export default function VisionPage() {
       [idx]: { file: null, preview: null, raw: null, type: null, isCustomUpload: false }
     }));
     setVisionSignalState((prev) => ({ ...prev, isAutoCycleActive: false }));
-    setIsAnalyzed(false);
+    setVisionAnalysis({ isAnalyzed: false });
   };
 
   const handleResetDefaultFeeds = () => {
@@ -88,10 +84,10 @@ export default function VisionPage() {
       2: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
       3: { file: null, preview: null, raw: null, type: null, isCustomUpload: false }
     });
-    setDetectionResult(null);
-    setInferenceMetadata(null);
+    setVisionAnalysis({ detectionResult: null });
+    setVisionAnalysis({ inferenceMetadata: null });
     setVisionSignalState((prev) => ({ ...prev, isAutoCycleActive: false }));
-    setIsAnalyzed(false);
+    setVisionAnalysis({ isAnalyzed: false });
   };
 
   const handleClearAll = () => {
@@ -101,10 +97,10 @@ export default function VisionPage() {
       2: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
       3: { file: null, preview: null, raw: null, type: null, isCustomUpload: false }
     });
-    setDetectionResult(null);
-    setInferenceMetadata(null);
+    setVisionAnalysis({ detectionResult: null });
+    setVisionAnalysis({ inferenceMetadata: null });
     setVisionSignalState((prev) => ({ ...prev, isAutoCycleActive: false }));
-    setIsAnalyzed(false);
+    setVisionAnalysis({ isAnalyzed: false });
   };
 
   const hasAnyFeed = Object.values(laneFeeds).some((feed) => feed.preview !== null);
@@ -115,7 +111,7 @@ export default function VisionPage() {
 
     const currentFeeds = { ...laneFeeds };
     setLaneFeeds(currentFeeds);
-    setIsAnalyzed(true);
+    setVisionAnalysis({ isAnalyzed: true });
 
     // Try backend API detection with UVH-26 model for custom files
     const hasCustomFiles = Object.values(currentFeeds).some((f) => f.file !== null);
@@ -172,13 +168,13 @@ export default function VisionPage() {
           console.log("[VisionPage] Queue lengths:", data.queue_lengths);
           console.log("[VisionPage] Inference time:", data.inference_time_ms, "ms");
           
-          setDetectionResult(data);
-          setInferenceMetadata({
+          setVisionAnalysis({ detectionResult: data });
+          setVisionAnalysis({ inferenceMetadata: {
             model: 'UVH-26 (YOLOv11-S)',
             inferenceTime: data.inference_time_ms,
             batchSize: data.batch_size,
             source: 'Backend API Detection'
-          });
+          } });
           updateStoreFromBackendData(data);
           return;
         } else {
@@ -281,12 +277,12 @@ export default function VisionPage() {
       signal_optimization: { phase: 'LANE_1_NORTH', duration: Math.max(10, Math.min(60, Math.round(10 + 50 * (queues.L1.pce / totalPce)))) }
     };
 
-    setDetectionResult(mockResult);
-    setInferenceMetadata({
+    setVisionAnalysis({ detectionResult: mockResult });
+    setVisionAnalysis({ inferenceMetadata: {
       model: 'Fallback Dynamic Analysis',
       source: 'Frontend Mock Detection',
       note: 'Backend unavailable - using deterministic hash-based analysis'
-    });
+    } });
 
     setVisionSignalState((prev) => {
       const l1Duration = Math.max(10, Math.min(60, Math.round(10 + 50 * (queues.L1.pce / totalPce))));
@@ -374,8 +370,8 @@ export default function VisionPage() {
   // Auto-trigger snapshot right before red light
   useEffect(() => {
     const isAutoCycleActive = visionSignalState?.isAutoCycleActive || false;
-    if (isAutoCycleActive && remainingSec === 5 && hasAnyFeed && !loading) {
-      console.log("[VisionPage] Timer hit 5s (Yellow Light). Auto-triggering live snapshot calculation for next cycle phase...");
+    if (isAutoCycleActive && remainingSec === 8 && hasAnyFeed && !loading) {
+      console.log("[VisionPage] Timer hit 8s. Auto-triggering live snapshot calculation for next cycle phase...");
       handleAnalyze();
     }
   }, [remainingSec, visionSignalState?.isAutoCycleActive, hasAnyFeed, loading]);
