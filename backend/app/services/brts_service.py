@@ -121,6 +121,14 @@ class BRTSSession:
         self._loop_task: Optional[asyncio.Task] = None
         self._stop = False
         self._last_violation_time = 0.0
+        # ByteTrack gives each physical vehicle a persistent ID across frames -
+        # once a given vehicle has been logged as a violation, skip it for the
+        # rest of this session instead of re-logging it every cooldown window.
+        self._logged_track_ids: set = set()
+        # Writing a violation is a real network round-trip to Postgres (observed
+        # 6s+ cold, ~1s warm on Neon) - it must never block the frame loop, so it's
+        # fired off as an independent task rather than awaited inline.
+        self._pending_log_tasks: set = set()
 
     def set_roi(self, points: List[List[float]]) -> bool:
         """Replace the BRTS lane ROI polygon (normalized 0-1 coordinates, min 3 points)."""
@@ -140,6 +148,10 @@ class BRTSSession:
                 await self._loop_task
             except asyncio.CancelledError:
                 pass
+        # Give any in-flight violation writes a chance to finish rather than
+        # abandoning them mid-commit, but don't let a slow/cold DB block removal.
+        if self._pending_log_tasks:
+            await asyncio.wait(self._pending_log_tasks, timeout=8)
 
     async def _run_loop(self):
         """
@@ -172,7 +184,7 @@ class BRTSSession:
 
                 detections, new_violations = await loop.run_in_executor(None, self._detect, frame, model)
                 for v in new_violations:
-                    await self._log_violation(v)
+                    self._spawn_log_task(v)
 
                 annotated = await loop.run_in_executor(None, self._draw_overlay, frame, detections)
                 ok, jpeg = await loop.run_in_executor(
@@ -202,7 +214,15 @@ class BRTSSession:
             return detections, violations_found
 
         try:
-            results = model(frame, verbose=False, conf=DETECTION_CONF, imgsz=DETECTION_IMG_SIZE)
+            # ByteTrack (persist=True keeps track identities alive across calls on this
+            # model instance) gives each physical vehicle a stable ID, so the dedup below
+            # can tell "the same truck, still there" apart from "a different truck" -
+            # without it, every cooldown window re-logs whatever's still sitting in the
+            # ROI as if it were a brand new violation.
+            results = model.track(
+                frame, persist=True, tracker="bytetrack.yaml",
+                conf=DETECTION_CONF, imgsz=DETECTION_IMG_SIZE, verbose=False
+            )
             if not results or len(results) == 0:
                 return detections, violations_found
 
@@ -215,6 +235,7 @@ class BRTSSession:
                 conf = float(box.conf[0].item())
                 x1, y1, x2, y2 = [int(v) for v in box.xyxy[0].tolist()]
                 bw, bh = x2 - x1, y2 - y1
+                track_id = int(box.id[0].item()) if box.id is not None else None
 
                 if y2 < int(0.18 * H):
                     continue  # near the top of frame - distant sky/pole artifacts
@@ -222,19 +243,20 @@ class BRTSSession:
                     continue  # very tall and narrow - a pole/signal, not a vehicle
 
                 raw_label = names.get(cls_id, "Others")
-                raw_boxes.append({"bbox": (x1, y1, x2, y2), "raw_label": raw_label, "conf": conf})
+                raw_boxes.append({
+                    "bbox": (x1, y1, x2, y2), "raw_label": raw_label, "conf": conf, "track_id": track_id
+                })
 
-            # OCR is expensive (~0.2s/call) and only one violation gets logged per
-            # cooldown window anyway - running it on every intruding vehicle on every
-            # single frame (a busy scene can have a dozen+) is what was actually making
-            # frames slow, not the detector. Only attempt it when the cooldown has
-            # actually elapsed, and stop after the first candidate that frame.
-            can_log_violation = (time.time() - self._last_violation_time) >= VIOLATION_COOLDOWN_SEC
+            # OCR is expensive (~0.2s/call) - cap it at one attempt per frame regardless.
+            # Untracked boxes (track_id is None, e.g. a brief tracker dropout) fall back
+            # to the old time-based cooldown so they don't get OCR'd every single frame.
+            can_log_violation = True
 
             for b in _deduplicate_raw_boxes(raw_boxes):
                 conf = b["conf"]
                 x1, y1, x2, y2 = b["bbox"]
                 raw_label = b["raw_label"]
+                track_id = b["track_id"]
                 is_brts = raw_label in BRTS_BUS_LABELS
 
                 contact_x = (x1 + x2) / (2.0 * W)
@@ -246,19 +268,30 @@ class BRTSSession:
                     "raw_label": raw_label,
                     "is_brts": is_brts,
                     "conf": conf,
-                    "in_lane": in_lane
+                    "in_lane": in_lane,
+                    "track_id": track_id
                 })
 
-                if in_lane and not is_brts and can_log_violation:
-                    plate, plate_error = self._read_plate_for_vehicle(frame, (x1, y1, x2, y2), H, W)
-                    violations_found.append({
-                        "vehicle_label": raw_label,
-                        "plate": plate,
-                        "plate_error": plate_error,
-                        "confidence": conf,
-                        "frame": frame.copy()
-                    })
-                    can_log_violation = False  # this frame's one allowed violation slot is used
+                if not (in_lane and not is_brts and can_log_violation):
+                    continue
+
+                already_logged = track_id is not None and track_id in self._logged_track_ids
+                cooldown_elapsed = (time.time() - self._last_violation_time) >= VIOLATION_COOLDOWN_SEC
+                should_log = (not already_logged) if track_id is not None else cooldown_elapsed
+                if not should_log:
+                    continue
+
+                plate, plate_error = self._read_plate_for_vehicle(frame, (x1, y1, x2, y2), H, W)
+                violations_found.append({
+                    "vehicle_label": raw_label,
+                    "plate": plate,
+                    "plate_error": plate_error,
+                    "confidence": conf,
+                    "frame": frame.copy()
+                })
+                can_log_violation = False  # this frame's one allowed violation slot is used
+                if track_id is not None:
+                    self._logged_track_ids.add(track_id)
         except Exception:
             pass
 
@@ -303,13 +336,14 @@ class BRTSSession:
         intrusions = 0
         for d in detections:
             x1, y1, x2, y2 = d["bbox"]
+            id_tag = f"#{d['track_id']} " if d.get("track_id") is not None else ""
             if d["in_lane"] and d["is_brts"]:
-                color, label = (0, 255, 0), f"BRTS BUS ({int(d['conf'] * 100)}%)"
+                color, label = (0, 255, 0), f"{id_tag}BRTS BUS ({int(d['conf'] * 100)}%)"
             elif d["in_lane"]:
                 intrusions += 1
-                color, label = (0, 0, 255), f"NOT BRTS: {d['raw_label'].upper()} ({int(d['conf'] * 100)}%)"
+                color, label = (0, 0, 255), f"{id_tag}NOT BRTS: {d['raw_label'].upper()} ({int(d['conf'] * 100)}%)"
             else:
-                color, label = (255, 180, 50), f"{d['raw_label']} ({int(d['conf'] * 100)}%)"
+                color, label = (255, 180, 50), f"{id_tag}{d['raw_label']} ({int(d['conf'] * 100)}%)"
 
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
             cv2.putText(frame, label, (x1, max(15, y1 - 6)),
@@ -317,14 +351,23 @@ class BRTSSession:
 
         cv2.rectangle(frame, (0, 0), (W, 34), (15, 18, 26), -1)
         status = f"{intrusions} INTRUSION(S)" if intrusions else "LANE CLEAR"
-        cv2.putText(frame, f"BRTS LAB | {self.junction_label} | {status}", (10, 23),
+        cv2.putText(frame, f"BRTS GUARD | {self.junction_label} | {status}", (10, 23),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255) if intrusions else (0, 215, 255), 2)
         return frame
 
+    def _spawn_log_task(self, v: Dict[str, Any]):
+        """Fire-and-forget a violation write - a Postgres round-trip (Neon can take
+        6s+ cold, ~1s warm) must never stall the frame loop or block a busy scene's
+        many simultaneously-new vehicles from being drawn/displayed on time."""
+        task = asyncio.create_task(self._log_violation(v))
+        self._pending_log_tasks.add(task)
+        task.add_done_callback(self._pending_log_tasks.discard)
+
     async def _log_violation(self, v: Dict[str, Any]):
+        # The decision to log (per-vehicle dedup via track_id, or the cooldown
+        # fallback for untracked boxes) is already made in _detect() - this just
+        # records the timestamp for that fallback and persists the violation.
         now = time.time()
-        if now - self._last_violation_time < VIOLATION_COOLDOWN_SEC:
-            return
         self._last_violation_time = now
         self.violation_count += 1
 
@@ -334,18 +377,21 @@ class BRTSSession:
         except Exception:
             evidence_filename = None
 
-        async with AsyncSessionLocal() as db:
-            db.add(BRTSViolation(
-                session_id=self.session_id,
-                junction_label=self.junction_label,
-                vehicle_label=v["vehicle_label"],
-                license_plate=v["plate"] or PLATE_UNREADABLE,
-                ocr_error=v["plate_error"],
-                confidence=round(v["confidence"], 2),
-                evidence_path=f"evidence/{evidence_filename}" if evidence_filename else None,
-                status="PENDING"
-            ))
-            await db.commit()
+        try:
+            async with AsyncSessionLocal() as db:
+                db.add(BRTSViolation(
+                    session_id=self.session_id,
+                    junction_label=self.junction_label,
+                    vehicle_label=v["vehicle_label"],
+                    license_plate=v["plate"] or PLATE_UNREADABLE,
+                    ocr_error=v["plate_error"],
+                    confidence=round(v["confidence"], 2),
+                    evidence_path=f"evidence/{evidence_filename}" if evidence_filename else None,
+                    status="PENDING"
+                ))
+                await db.commit()
+        except Exception as e:
+            print(f"[BRTS] Failed to persist violation for session {self.session_id}: {e}")
 
 
 # --- Single active-session registry (one upload at a time, per current scope) ---
@@ -358,10 +404,22 @@ async def start_new_session(video_path: Path, junction_label: str) -> BRTSSessio
         await _current_session.stop()
         _cleanup_file(_current_session.video_path)
 
+    # Only one video's worth of violations should ever be visible at a time -
+    # a new upload starts a clean log, not an accumulation from whatever was
+    # uploaded before it.
+    await clear_all_violations()
+
     session = BRTSSession(f"brts_{int(time.time())}", video_path, junction_label)
     session.start()
     _current_session = session
     return session
+
+
+async def clear_all_violations():
+    from sqlalchemy import delete
+    async with AsyncSessionLocal() as db:
+        await db.execute(delete(BRTSViolation))
+        await db.commit()
 
 
 async def stop_current_session():

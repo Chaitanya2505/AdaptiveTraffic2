@@ -225,13 +225,14 @@ async def export_simulation_pdf():
         return await export_simulation_html_report()
 
 @router.post("/simulation/run-5min")
-async def start_5min_run(scenario: str = Query("adaptive"), demand: str = Query("peak")):
+async def start_5min_run(scenario: str = Query("adaptive"), demand: str = Query("peak"), pattern: Optional[str] = Query(None)):
     """Initiates an automated 5-minute (300s) demonstration simulation."""
-    await sumo_service.run_5min_demo(scenario=scenario, demand=demand)
+    await sumo_service.run_5min_demo(scenario=scenario, demand=demand, pattern=pattern)
     return {
         "status": "started",
         "scenario": scenario,
         "demand": demand,
+        "pattern": pattern or sumo_service.traffic_pattern,
         "targetDuration": 300.0,
         "message": "5-Minute SUMO demonstration run initiated."
     }

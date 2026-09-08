@@ -17,7 +17,7 @@ from app.database import AsyncSessionLocal
 from app.models.brts import BRTSViolation
 from app.services.brts_service import (
     BRTS_UPLOADS_DIR, BRTS_EVIDENCE_DIR, DEFAULT_ROI,
-    start_new_session, stop_current_session, get_current_session
+    start_new_session, stop_current_session, get_current_session, clear_all_violations
 )
 
 router = APIRouter(prefix="/api/brts", tags=["BRTS Lane Guard"])
@@ -116,6 +116,16 @@ async def stream_video():
             await asyncio.sleep(0.05)
 
     return StreamingResponse(frame_generator(), media_type="multipart/x-mixed-replace; boundary=frame")
+
+
+@router.delete("/violations")
+async def clear_violations():
+    await clear_all_violations()
+    session = get_current_session()
+    if session:
+        session.violation_count = 0
+        session._logged_track_ids.clear()
+    return {"status": "SUCCESS", "message": "All violation logs cleared."}
 
 
 @router.get("/violations")

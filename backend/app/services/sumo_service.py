@@ -60,7 +60,10 @@ GATEWAY_ROUTES = {
     "brts_east":     ["r_BRTS_E_TO_W"]
 }
 
-# Balanced weights: 24% West Arterial, 24% East Arterial, 52% Cross-feeders evenly shared across all 8 legs (6.5% each)
+# "Balanced" weights: 24% West Arterial, 24% East Arterial, 52% Cross-feeders evenly shared
+# across all 8 legs (6.5% each). Kept as a named pattern below (mainly for testing/comparison) -
+# real traffic never actually looks like this; every approach getting identical volume is what
+# made the simulation look synthetic rather than like a real corridor.
 GATEWAY_WEIGHTS = {
     "west_arterial": 0.20,
     "east_arterial": 0.20,
@@ -74,6 +77,42 @@ GATEWAY_WEIGHTS = {
     "sahara_south":  0.065,
     "brts_west":     0.04,
     "brts_east":     0.04
+}
+
+# Named directional demand patterns - each is a full gateway-weight distribution (sums to 1.0),
+# selectable from the UI, so different approaches genuinely carry different, realistic load
+# instead of identical influx everywhere. "random_dynamic" (see _update_dynamic_weights) is not
+# a fixed table - it continuously drifts over time instead of sitting at one static ratio.
+TRAFFIC_PATTERNS = {
+    "balanced": GATEWAY_WEIGHTS,
+    # Morning commute: heavy inbound West->East plus North feeders (into the city), light return legs.
+    "morning_rush": {
+        "west_arterial": 0.32, "east_arterial": 0.06,
+        "svnit_north":   0.13, "svnit_south":   0.02,
+        "ghoddod_north": 0.11, "ghoddod_south": 0.02,
+        "majura_north":  0.09, "majura_south":  0.02,
+        "sahara_north":  0.07, "sahara_south":  0.02,
+        "brts_west":     0.09, "brts_east":     0.05
+    },
+    # Evening commute: mirror of morning_rush - heavy outbound East->West plus South feeders.
+    "evening_rush": {
+        "west_arterial": 0.06, "east_arterial": 0.32,
+        "svnit_north":   0.02, "svnit_south":   0.13,
+        "ghoddod_north": 0.02, "ghoddod_south": 0.11,
+        "majura_north":  0.02, "majura_south":  0.09,
+        "sahara_north":  0.02, "sahara_south":  0.07,
+        "brts_west":     0.05, "brts_east":     0.09
+    },
+    # Lighter arterial through-traffic, feeder-heavy and asymmetric across junctions rather than
+    # a single rush direction - approximates an off-peak/weekend pattern.
+    "weekend_leisure": {
+        "west_arterial": 0.14, "east_arterial": 0.14,
+        "svnit_north":   0.04, "svnit_south":   0.10,
+        "ghoddod_north": 0.10, "ghoddod_south": 0.04,
+        "majura_north":  0.09, "majura_south":  0.09,
+        "sahara_north":  0.10, "sahara_south":  0.10,
+        "brts_west":     0.03, "brts_east":     0.03
+    }
 }
 
 ROUTE_CATEGORIES = GATEWAY_ROUTES
@@ -194,6 +233,13 @@ class SumoService:
         self.demand_preset = "peak"  # low, normal, heavy, peak, custom
         self.is_manual_tl = False
         self.brts_priority_enabled = True
+
+        # Directional demand pattern (which gateways get more/less traffic) - independent of
+        # demand_preset, which only scales overall volume. "random_dynamic" is the default so
+        # the corridor looks alive/organic out of the box rather than perfectly symmetric.
+        self.traffic_pattern = "random_dynamic"  # balanced, morning_rush, evening_rush, weekend_leisure, random_dynamic
+        self._dynamic_weights: Dict[str, float] = dict(GATEWAY_WEIGHTS)
+        self._last_dynamic_update = 0.0
 
         # 5-minute automated run tracking
         self.is_5min_running = False
@@ -322,13 +368,44 @@ class SumoService:
             print(f"Error parsing geometry: {e}")
             return {"lanes": [], "nodes": [], "trafficLights": {}}
 
+    def _update_dynamic_weights(self, current_sim_time: float):
+        """
+        Slowly perturbs gateway weights over (simulated) time so demand ebbs and
+        flows organically instead of sitting at one fixed ratio for the whole
+        run - this is what makes the corridor look like live traffic rather
+        than a frozen synthetic snapshot. Each gateway does a mean-reverting
+        random walk (drifts, but is gently pulled back toward its balanced
+        baseline so it doesn't collapse to one dominant route forever).
+        """
+        if current_sim_time - self._last_dynamic_update < 8.0:
+            return
+        self._last_dynamic_update = current_sim_time
+
+        for gw, current in self._dynamic_weights.items():
+            base = GATEWAY_WEIGHTS[gw]
+            pull_to_base = (base - current) * 0.15
+            noise = random.uniform(-0.03, 0.03)
+            self._dynamic_weights[gw] = max(0.01, current + pull_to_base + noise)
+
+        total = sum(self._dynamic_weights.values())
+        for gw in self._dynamic_weights:
+            self._dynamic_weights[gw] /= total
+
+    def _get_current_gateway_weights(self, current_sim_time: float) -> Dict[str, float]:
+        """Returns the gateway weight distribution for whichever traffic_pattern is
+        currently selected - a named table, or the continuously-drifting dynamic one."""
+        if self.traffic_pattern == "random_dynamic":
+            self._update_dynamic_weights(current_sim_time)
+            return self._dynamic_weights
+        return TRAFFIC_PATTERNS.get(self.traffic_pattern, GATEWAY_WEIGHTS)
+
     def spawn_balanced_traffic(self, current_sim_time: float):
         """
-        Spawns realistic 4-way traffic using balanced gateway-level distribution:
-        - 24% West Arterial Corridor (West Entry + BRTS)
-        - 24% East Arterial Corridor (East Entry + BRTS)
-        - 52% Cross-Street Feeders evenly balanced across North and South approaches of all 4 junctions (6.5% each)
-        Eliminates bottleneck overloading at single entry gateways (e.g. SVNIT West).
+        Spawns 4-way traffic using the currently-selected directional demand
+        pattern (balanced / morning_rush / evening_rush / weekend_leisure /
+        random_dynamic) rather than a single fixed ratio, so different
+        approaches genuinely carry different, realistic load instead of
+        identical influx everywhere.
         """
         prob = (self.spawn_rate / 60.0) * 0.1  # probability per 0.1s step
         if random.random() >= prob:
@@ -337,9 +414,9 @@ class SumoService:
         self.veh_counter += 1
         veh_id = f"veh_{self.veh_counter}"
 
-        # Balanced gateway selection
-        gateways = list(GATEWAY_WEIGHTS.keys())
-        weights = list(GATEWAY_WEIGHTS.values())
+        weights_map = self._get_current_gateway_weights(current_sim_time)
+        gateways = list(weights_map.keys())
+        weights = list(weights_map.values())
         gw = random.choices(gateways, weights=weights, k=1)[0]
 
         route_id = random.choice(GATEWAY_ROUTES[gw])
@@ -877,6 +954,8 @@ class SumoService:
         self.is_5min_running = False
         self.live_alerts = []
         self.vehicle_static_cache.clear()
+        self._dynamic_weights = dict(GATEWAY_WEIGHTS)
+        self._last_dynamic_update = 0.0
         simulation_analytics.reset()
 
         for jid in CORRIDOR_TLS:
@@ -897,13 +976,15 @@ class SumoService:
                 await self.stop()
                 await self.start()
 
-    async def run_5min_demo(self, scenario: str = "adaptive", demand: str = "peak"):
+    async def run_5min_demo(self, scenario: str = "adaptive", demand: str = "peak", pattern: Optional[str] = None):
         """Initiates a dedicated 5-minute (300 simulation seconds) demonstration run."""
         await self.reset()
 
         self.scenario_mode = scenario
         self.demand_preset = demand
         self.spawn_rate = 90.0 if demand == "peak" else 60.0 if demand == "heavy" else 30.0 if demand == "normal" else 15.0
+        if pattern:
+            self.traffic_pattern = pattern
 
         simulation_analytics.scenario_mode = scenario
         simulation_analytics.demand_level = demand
@@ -919,12 +1000,13 @@ class SumoService:
         self.is_5min_running = True
         self.is_paused = False
 
+        pattern_label = self.traffic_pattern.replace("_", " ").title()
         self.live_alerts.append({
             "id": f"ALT_{int(time.time())}",
             "timestamp": "00:00",
             "severity": "info",
             "title": "5-Minute Simulation Started",
-            "message": f"Scenario: {simulation_analytics.scenario_name} | Demand: {demand.upper()} ({self.spawn_rate} veh/min)"
+            "message": f"Scenario: {simulation_analytics.scenario_name} | Demand: {demand.upper()} ({self.spawn_rate} veh/min) | Pattern: {pattern_label}"
         })
 
     async def simulation_loop(self):
@@ -937,7 +1019,7 @@ class SumoService:
 
                     current_sim_time = float(traci.simulation.getTime())
 
-                    # 1. Dynamically spawn vehicles using balanced 4-way OD matrix
+                    # 1. Dynamically spawn vehicles using the selected directional demand pattern
                     self.spawn_balanced_traffic(current_sim_time)
 
                     # 2. Advance SUMO simulation by 0.1s step
@@ -1020,6 +1102,7 @@ class SumoService:
                     "speedMultiplier": self.speed_multiplier,
                     "scenarioMode": self.scenario_mode,
                     "demandPreset": self.demand_preset,
+                    "trafficPattern": self.traffic_pattern,
                     "isManualTl": self.is_manual_tl,
                     "is5MinRunning": self.is_5min_running,
                     "brtsPriorityEnabled": self.brts_priority_enabled
@@ -1057,7 +1140,8 @@ class SumoService:
             elif msg_type == "run_5min":
                 scenario = msg.get("scenario", "adaptive")
                 demand = msg.get("demand", "peak")
-                await self.run_5min_demo(scenario, demand)
+                pattern = msg.get("pattern")
+                await self.run_5min_demo(scenario, demand, pattern)
             elif msg_type == "set_scenario":
                 self.scenario_mode = msg.get("scenario", "adaptive")
                 simulation_analytics.scenario_mode = self.scenario_mode
@@ -1066,6 +1150,13 @@ class SumoService:
                 self.demand_preset = msg.get("preset", "peak")
                 rates = {"low": 15.0, "normal": 30.0, "heavy": 60.0, "peak": 90.0}
                 self.spawn_rate = rates.get(self.demand_preset, self.spawn_rate)
+            elif msg_type == "set_traffic_pattern":
+                pattern = msg.get("pattern", "balanced")
+                if pattern in TRAFFIC_PATTERNS or pattern == "random_dynamic":
+                    self.traffic_pattern = pattern
+                    if pattern == "random_dynamic":
+                        self._dynamic_weights = dict(GATEWAY_WEIGHTS)
+                        self._last_dynamic_update = 0.0
             elif msg_type == "set_spawn_rate":
                 self.spawn_rate = max(0.0, float(msg.get("value", 60.0)))
                 self.demand_preset = "custom"
@@ -1083,6 +1174,7 @@ class SumoService:
                     "speedMultiplier": self.speed_multiplier,
                     "scenarioMode": self.scenario_mode,
                     "demandPreset": self.demand_preset,
+                    "trafficPattern": self.traffic_pattern,
                     "isManualTl": self.is_manual_tl,
                     "is5MinRunning": self.is_5min_running,
                     "brtsPriorityEnabled": self.brts_priority_enabled

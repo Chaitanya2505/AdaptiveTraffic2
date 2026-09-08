@@ -117,6 +117,9 @@ export default function BRTSLaneGuardPage() {
       if (data.roi) setRoi(data.roi);
       setStreamKey(Date.now());
       setPhase('streaming');
+      // The backend clears previous violations on every new upload - reflect that
+      // immediately rather than waiting for the next poll cycle.
+      setViolations([]);
       showToast(`"${file.name}" is now streaming with live BRTS detection.`);
     } catch (e) {
       setErrorMsg(e.message || 'Upload failed');
@@ -135,6 +138,17 @@ export default function BRTSLaneGuardPage() {
       setRoi(null);
       setPhase('idle');
       showToast('Video removed. Ready for a new upload.');
+    }
+  };
+
+  const handleClearLogs = async () => {
+    try {
+      await fetch(`${BRTS_API}/violations`, { method: 'DELETE' });
+    } catch (e) {
+      console.error('[BRTS] clear logs failed:', e);
+    } finally {
+      setViolations([]);
+      showToast('Violation log cleared.');
     }
   };
 
@@ -236,11 +250,16 @@ export default function BRTSLaneGuardPage() {
           </div>
         </div>
 
-        {phase === 'streaming' && (
-          <Button variant="danger" icon={Trash2} onClick={handleRemoveVideo}>
-            Remove Video
+        <div className="flex items-center gap-2">
+          <Button variant="outline" icon={Trash2} onClick={handleClearLogs}>
+            Clear Logs
           </Button>
-        )}
+          {phase === 'streaming' && (
+            <Button variant="danger" icon={Trash2} onClick={handleRemoveVideo}>
+              Remove Video
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Main viewport / upload dropzone */}

@@ -28,7 +28,11 @@ import {
   Eye,
   Maximize2,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  Sunrise,
+  Sunset,
+  Shuffle,
+  CalendarDays
 } from 'lucide-react';
 
 const SCENARIOS = [
@@ -57,6 +61,47 @@ const DEMAND_PRESETS = [
   { id: 'peak', name: 'Peak', rate: 90, color: 'text-rose-400 border-rose-500/30' }
 ];
 
+// Directional demand patterns: which approaches carry more/less traffic, independent of the
+// overall volume set by DEMAND_PRESETS. Real corridors are never perfectly symmetric - this is
+// what makes the simulated traffic look like an actual place instead of a synthetic test grid.
+const TRAFFIC_PATTERNS = [
+  {
+    id: 'random_dynamic',
+    name: 'Live Realistic (Default)',
+    desc: 'Demand continuously drifts over time across all approaches - never a fixed ratio, so the corridor feels alive.',
+    icon: Shuffle,
+    color: 'text-emerald-400'
+  },
+  {
+    id: 'morning_rush',
+    name: 'Morning Rush',
+    desc: 'Heavy West→East + North feeders (commuting into the city), light return legs.',
+    icon: Sunrise,
+    color: 'text-amber-400'
+  },
+  {
+    id: 'evening_rush',
+    name: 'Evening Rush',
+    desc: 'Mirror of Morning Rush - heavy East→West + South feeders (commuting home).',
+    icon: Sunset,
+    color: 'text-orange-400'
+  },
+  {
+    id: 'weekend_leisure',
+    name: 'Weekend / Off-Peak',
+    desc: 'Lighter arterial through-traffic, feeder-heavy and asymmetric across junctions.',
+    icon: CalendarDays,
+    color: 'text-cyan-400'
+  },
+  {
+    id: 'balanced',
+    name: 'Balanced (Test Only)',
+    desc: 'Every approach gets identical volume - useful for A/B testing, not realistic.',
+    icon: Layers,
+    color: 'text-slate-400'
+  }
+];
+
 // Physical Node Coordinates in net.net.xml:
 // W_ENTRY: (0, 200), SVNIT: (250, 200), GHODDOD: (600, 200), MAJURA: (950, 200), SAHARA: (1300, 200), E_ENTRY: (1550, 200)
 // North nodes: Y = 400, South nodes: Y = 0
@@ -80,6 +125,7 @@ export default function SimulationPage() {
     isPaused: true,
     speedMultiplier: 1.0,
     scenarioMode: 'adaptive',
+    trafficPattern: 'random_dynamic',
     is5MinRunning: false,
     demoProgress: 0.0
   });
@@ -92,6 +138,7 @@ export default function SimulationPage() {
   const [selectedJunction, setSelectedJunction] = useState('J_MAJURA');
   const [selectedScenario, setSelectedScenario] = useState('adaptive');
   const [selectedDemand, setSelectedDemand] = useState('peak');
+  const [selectedPattern, setSelectedPattern] = useState('random_dynamic');
   const [alerts, setAlerts] = useState([]);
   const [logs, setLogs] = useState([]);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
@@ -580,9 +627,10 @@ export default function SimulationPage() {
     sendControl({
       type: "run_5min",
       scenario: selectedScenario,
-      demand: selectedDemand
+      demand: selectedDemand,
+      pattern: selectedPattern
     });
-    logMessage(`Started 5-minute demonstration run (${selectedScenario.toUpperCase()}, ${selectedDemand.toUpperCase()}).`, "success");
+    logMessage(`Started 5-minute demonstration run (${selectedScenario.toUpperCase()}, ${selectedDemand.toUpperCase()}, ${selectedPattern.replace('_', ' ').toUpperCase()}).`, "success");
   };
 
   const handleSelectScenario = (scId) => {
@@ -594,6 +642,12 @@ export default function SimulationPage() {
   const handleSelectDemand = (dId) => {
     setSelectedDemand(dId);
     sendControl({ type: "set_demand_preset", preset: dId });
+  };
+
+  const handleSelectPattern = (pId) => {
+    setSelectedPattern(pId);
+    sendControl({ type: "set_traffic_pattern", pattern: pId });
+    logMessage(`Traffic pattern switched to: ${pId.replace('_', ' ')}`, "system");
   };
 
   const handleSpeedChange = (val) => {
@@ -839,14 +893,43 @@ export default function SimulationPage() {
             </div>
           </Card>
 
+          {/* Directional Demand Pattern - which approaches get more/less traffic */}
+          <Card title="Directional Demand Pattern" subtitle="Which approaches carry more/less traffic - real corridors are never symmetric">
+            <div className="space-y-2">
+              {TRAFFIC_PATTERNS.map((tp) => {
+                const IconComponent = tp.icon;
+                const isSelected = selectedPattern === tp.id;
+                return (
+                  <button
+                    key={tp.id}
+                    onClick={() => handleSelectPattern(tp.id)}
+                    className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-start gap-2.5 ${
+                      isSelected
+                        ? 'bg-slate-900 border-emerald-500 shadow-md shadow-emerald-500/10'
+                        : 'bg-slate-950 border-slate-850 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className={`p-1.5 rounded-lg bg-slate-900 border border-slate-800 mt-0.5 ${tp.color}`}>
+                      <IconComponent className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs font-bold text-white">{tp.name}</span>
+                      <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">{tp.desc}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+
           {/* Playback Controls */}
           <Card title="Simulation Controls" subtitle="TraCI step execution & reset">
-            <div className="space-y-3">
-              <div className="flex gap-2">
+            <div className="space-y-">
+              <div className="flex flex-col gap-2">
                 <Button
                   variant={stats.isPaused ? "primary" : "outline"}
                   onClick={handleTogglePlay}
-                  className="flex-1 py-2"
+                  className="w-full py-2"
                 >
                   {stats.isPaused ? (
                     <>
@@ -860,6 +943,8 @@ export default function SimulationPage() {
                     </>
                   )}
                 </Button>
+
+                <div className="flex gap-2">
 
                 <Button
                   variant="outline"
@@ -879,6 +964,8 @@ export default function SimulationPage() {
                 >
                   <RotateCcw className="h-4 w-4" />
                 </Button>
+
+                </div>
               </div>
             </div>
           </Card>
@@ -972,14 +1059,14 @@ export default function SimulationPage() {
                   const app = activeIntel.approaches?.[dir] || { vehicles: 0, queue: 0, speed: 0, wait: 0, pressure: 0 };
                   return (
                     <div key={dir} className="p-2 rounded-lg bg-slate-950 border border-slate-850 space-y-1">
-                      <div className="flex items-center justify-between font-bold">
+                      <div className="flex items-center justify-between font-bold gap-1 whitespace-nowrap">
                         <span className="text-white">{dir}</span>
-                        <span className="text-emerald-400 font-mono">P: {app.pressure}</span>
+                        <span className="text-emerald-400 font-mono tabular-nums">P: {app.pressure}</span>
                       </div>
                       <div className="text-[10px] text-slate-400 space-y-0.5">
-                        <div className="flex justify-between"><span>Vehicles:</span><span className="text-slate-200">{app.vehicles}</span></div>
-                        <div className="flex justify-between"><span>Queue:</span><span className="text-rose-400 font-bold">{app.queue} veh</span></div>
-                        <div className="flex justify-between"><span>Avg Speed:</span><span className="text-cyan-400">{app.speed} km/h</span></div>
+                        <div className="flex justify-between items-baseline gap-1 whitespace-nowrap"><span>Vehicles:</span><span className="text-slate-200 tabular-nums">{app.vehicles}</span></div>
+                        <div className="flex justify-between items-baseline gap-1 whitespace-nowrap"><span>Queue:</span><span className="text-rose-400 font-bold tabular-nums">{app.queue} veh</span></div>
+                        <div className="flex justify-between items-baseline gap-1 whitespace-nowrap"><span>Speed:</span><span className="text-cyan-400 tabular-nums">{app.speed} km/h</span></div>
                       </div>
                     </div>
                   );
