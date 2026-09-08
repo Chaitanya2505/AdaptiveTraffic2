@@ -164,13 +164,13 @@ export default function VisionPage() {
         });
 
         if (data && data.queue_lengths) {
-          console.log("[VisionPage] ✅ UVH-26 Detection successful!", data);
+          console.log("[VisionPage] ✅ Traffic AI Model Detection successful!", data);
           console.log("[VisionPage] Queue lengths:", data.queue_lengths);
           console.log("[VisionPage] Inference time:", data.inference_time_ms, "ms");
           
           setVisionAnalysis({ detectionResult: data });
           setVisionAnalysis({ inferenceMetadata: {
-            model: 'UVH-26 (YOLOv11-S)',
+            model: 'Traffic AI Model',
             inferenceTime: data.inference_time_ms,
             batchSize: data.batch_size,
             source: 'Backend API Detection'
@@ -490,7 +490,7 @@ export default function VisionPage() {
                       </Badge>
                     )}
                     <Badge variant={feed.isCustomUpload ? 'info' : isAnalyzed ? 'success' : 'warning'}>
-                      {feed.isCustomUpload ? 'User Custom Upload' : isAnalyzed ? 'UVH-26 Annotated' : 'Raw CCTV Feed'}
+                      {feed.isCustomUpload ? 'User Custom Upload' : isAnalyzed ? 'AI Annotated' : 'Raw CCTV Feed'}
                     </Badge>
                   </div>
                 ) : (
@@ -582,16 +582,16 @@ export default function VisionPage() {
         })}
       </div>
 
-      {/* Comprehensive 4-Lane Telemetry & Vehicle Classification Breakdown Table */}
-      <Card 
-        title="IISc UVH-26 Fine-Tuned 4-Lane Telemetry Breakdown" 
-        subtitle={
-          inferenceMetadata
-            ? `${inferenceMetadata.source} • ${inferenceMetadata.model}${inferenceMetadata.inferenceTime ? ` • ${inferenceMetadata.inferenceTime}ms inference` : ''}${inferenceMetadata.note ? ' • ' + inferenceMetadata.note : ''}`
-            : "IRC:106-1990 PCE Queue Length calculations with vehicle class occupancy factors and spatial queue MAE accuracy"
-        }
-        action={<Activity className="h-5 w-5 text-emerald-400" />}
-      >
+        {/* Comprehensive 4-Lane Telemetry & Vehicle Classification Breakdown Table */}
+        <Card 
+          title="Live 4-Lane Traffic Telemetry" 
+          subtitle={
+            inferenceMetadata
+              ? `${inferenceMetadata.source} • ${inferenceMetadata.model}${inferenceMetadata.inferenceTime ? ` • ${inferenceMetadata.inferenceTime}ms inference` : ''}${inferenceMetadata.note ? ' • ' + inferenceMetadata.note : ''}`
+              : "Live vehicle detection, classification, and queue length analysis"
+          }
+          action={<Activity className="h-5 w-5 text-emerald-400" />}
+        >
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
             <thead>
