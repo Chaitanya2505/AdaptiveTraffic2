@@ -229,13 +229,15 @@ async def detect_batch_vehicles(
         },
         queue_summary=queue_lengths
     )
-        # Prepare real-time override so the cycle adapts to THIS exact frame, not 5-min history
-      live_lane_counts = {lane: data["vehicles"] for lane, data in queue_lengths.items()}
 
-      # Trigger Webster's signal optimization algorithm using these fresh batch detections
-      try:
-          optimized_signal = await SignalService.optimize(db, junction_id, mode="VISION", lane_counts_override=live_lane_counts)
-          signal_data = {
+    # Prepare real-time override so the cycle adapts to THIS exact frame, not 5-min history
+
+    live_lane_counts = {lane: data["vehicles"] for lane, data in queue_lengths.items()}
+
+    # Trigger Webster's signal optimization algorithm using these fresh batch detections
+    try:
+        optimized_signal = await SignalService.optimize(db, junction_id, mode="VISION", lane_counts_override=live_lane_counts)
+        signal_data = {
             "phase": optimized_signal.phase,
             "duration": optimized_signal.duration
         }
@@ -243,6 +245,7 @@ async def detect_batch_vehicles(
         signal_data = {"error": str(e)}
 
     response = {
+
         "junction_id": junction_id,
         "batch_size": len(files),
         "detections": batch_results, # List of lists of detections with updated lane_ids
