@@ -381,15 +381,15 @@ export default function VisionPage() {
       {/* Top Header & Area Selection Bar */}
       <div className="rounded-xl border border-slate-800 bg-slate-950 p-5 shadow-lg flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-white tracking-tight">Vision Sensing & Telemetry</h2>
-            <Badge variant="info" className="text-[10px]">
-              IRC:106 PCE Multi-Lane Queue Model (MAE &lt; 1.2m)
-            </Badge>
-          </div>
-          <p className="text-xs text-slate-400 font-medium">
-            Dynamic AI object detection & IRC:106 Passenger Car Equivalent queue length calculation for user uploads & CCTV streams.
-          </p>
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-bold text-white tracking-tight">Vision Sensing & Telemetry</h2>
+              <Badge variant="info" className="text-[10px]">
+                Live Traffic AI Analysis Model
+              </Badge>
+            </div>
+            <p className="text-xs text-slate-400 font-medium">
+              Dynamic AI vehicle detection and real-time queue length analysis for uploaded footage and CCTV streams.
+            </p>
         </div>
 
         {/* Junction Selection Dropdown & Run Controls */}
