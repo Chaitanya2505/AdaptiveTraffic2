@@ -29,6 +29,7 @@ else:
 
 try:
     import traci
+    import traci.constants as tc
     import sumolib
     SUMO_AVAILABLE = True
 except ImportError:
@@ -79,39 +80,49 @@ GATEWAY_WEIGHTS = {
     "brts_east":     0.04
 }
 
-# Named directional demand patterns - each is a full gateway-weight distribution (sums to 1.0),
-# selectable from the UI, so different approaches genuinely carry different, realistic load
-# instead of identical influx everywhere. "random_dynamic" (see _update_dynamic_weights) is not
-# a fixed table - it continuously drifts over time instead of sitting at one static ratio.
 TRAFFIC_PATTERNS = {
     "balanced": GATEWAY_WEIGHTS,
-    # Morning commute: heavy inbound West->East plus North feeders (into the city), light return legs.
     "morning_rush": {
-        "west_arterial": 0.32, "east_arterial": 0.06,
-        "svnit_north":   0.13, "svnit_south":   0.02,
-        "ghoddod_north": 0.11, "ghoddod_south": 0.02,
-        "majura_north":  0.09, "majura_south":  0.02,
-        "sahara_north":  0.07, "sahara_south":  0.02,
-        "brts_west":     0.09, "brts_east":     0.05
+        "west_arterial": 0.32,
+        "east_arterial": 0.10,
+        "svnit_north":   0.09,
+        "svnit_south":   0.04,
+        "ghoddod_north": 0.09,
+        "ghoddod_south": 0.04,
+        "majura_north":  0.09,
+        "majura_south":  0.04,
+        "sahara_north":  0.09,
+        "sahara_south":  0.04,
+        "brts_west":     0.03,
+        "brts_east":     0.03,
     },
-    # Evening commute: mirror of morning_rush - heavy outbound East->West plus South feeders.
     "evening_rush": {
-        "west_arterial": 0.06, "east_arterial": 0.32,
-        "svnit_north":   0.02, "svnit_south":   0.13,
-        "ghoddod_north": 0.02, "ghoddod_south": 0.11,
-        "majura_north":  0.02, "majura_south":  0.09,
-        "sahara_north":  0.02, "sahara_south":  0.07,
-        "brts_west":     0.05, "brts_east":     0.09
+        "west_arterial": 0.10,
+        "east_arterial": 0.32,
+        "svnit_north":   0.04,
+        "svnit_south":   0.09,
+        "ghoddod_north": 0.04,
+        "ghoddod_south": 0.09,
+        "majura_north":  0.04,
+        "majura_south":  0.09,
+        "sahara_north":  0.04,
+        "sahara_south":  0.09,
+        "brts_west":     0.03,
+        "brts_east":     0.03,
     },
-    # Lighter arterial through-traffic, feeder-heavy and asymmetric across junctions rather than
-    # a single rush direction - approximates an off-peak/weekend pattern.
     "weekend_leisure": {
-        "west_arterial": 0.14, "east_arterial": 0.14,
-        "svnit_north":   0.04, "svnit_south":   0.10,
-        "ghoddod_north": 0.10, "ghoddod_south": 0.04,
-        "majura_north":  0.09, "majura_south":  0.09,
-        "sahara_north":  0.10, "sahara_south":  0.10,
-        "brts_west":     0.03, "brts_east":     0.03
+        "west_arterial": 0.14,
+        "east_arterial": 0.14,
+        "svnit_north":   0.08,
+        "svnit_south":   0.08,
+        "ghoddod_north": 0.09,
+        "ghoddod_south": 0.09,
+        "majura_north":  0.08,
+        "majura_south":  0.08,
+        "sahara_north":  0.07,
+        "sahara_south":  0.07,
+        "brts_west":     0.04,
+        "brts_east":     0.04,
     }
 }
 
@@ -231,15 +242,15 @@ class SumoService:
         self.speed_multiplier = 1.0
         self.scenario_mode = "adaptive"  # adaptive, fixed
         self.demand_preset = "peak"  # low, normal, heavy, peak, custom
+        self.traffic_pattern = "random_dynamic"
+        self.influx_pattern = "balanced"
+        self.surge_remaining = 0.0
+        self.surge_previous_rate = 60.0
+        self._dynamic_weights = dict(GATEWAY_WEIGHTS)
+        self._last_dynamic_update = 0.0
+        self.subscribed_vehicles = set()
         self.is_manual_tl = False
         self.brts_priority_enabled = True
-
-        # Directional demand pattern (which gateways get more/less traffic) - independent of
-        # demand_preset, which only scales overall volume. "random_dynamic" is the default so
-        # the corridor looks alive/organic out of the box rather than perfectly symmetric.
-        self.traffic_pattern = "random_dynamic"  # balanced, morning_rush, evening_rush, weekend_leisure, random_dynamic
-        self._dynamic_weights: Dict[str, float] = dict(GATEWAY_WEIGHTS)
-        self._last_dynamic_update = 0.0
 
         # 5-minute automated run tracking
         self.is_5min_running = False
@@ -401,11 +412,11 @@ class SumoService:
 
     def spawn_balanced_traffic(self, current_sim_time: float):
         """
-        Spawns 4-way traffic using the currently-selected directional demand
-        pattern (balanced / morning_rush / evening_rush / weekend_leisure /
-        random_dynamic) rather than a single fixed ratio, so different
-        approaches genuinely carry different, realistic load instead of
-        identical influx everywhere.
+        Spawns realistic 4-way traffic using balanced gateway-level distribution:
+        - 24% West Arterial Corridor (West Entry + BRTS)
+        - 24% East Arterial Corridor (East Entry + BRTS)
+        - 52% Cross-Street Feeders evenly balanced across North and South approaches of all 4 junctions (6.5% each)
+        Eliminates bottleneck overloading at single entry gateways (e.g. SVNIT West).
         """
         prob = (self.spawn_rate / 60.0) * 0.1  # probability per 0.1s step
         if random.random() >= prob:
@@ -414,9 +425,10 @@ class SumoService:
         self.veh_counter += 1
         veh_id = f"veh_{self.veh_counter}"
 
-        weights_map = self._get_current_gateway_weights(current_sim_time)
-        gateways = list(weights_map.keys())
-        weights = list(weights_map.values())
+        # Balanced gateway selection
+        gw_weights = self._get_current_gateway_weights(current_sim_time)
+        gateways = list(gw_weights.keys())
+        weights = list(gw_weights.values())
         gw = random.choices(gateways, weights=weights, k=1)[0]
 
         route_id = random.choice(GATEWAY_ROUTES[gw])
@@ -435,6 +447,78 @@ class SumoService:
             traci.vehicle.add(vehID=veh_id, routeID=route_id, typeID=type_id)
         except traci.TraCIException:
             pass
+
+    def inject_traffic_influx(self, pattern: str = "grid_surge", count: int = 12):
+        """
+        Immediately spawns an instant influx burst of `count` vehicles on specified corridor routes.
+        Allows testing how the adaptive system handles sudden surges.
+        """
+        if not self.traci_started:
+            return 0
+
+        routes = []
+        if pattern == "west_arterial":
+            routes = GATEWAY_ROUTES["west_arterial"]
+        elif pattern == "east_arterial":
+            routes = GATEWAY_ROUTES["east_arterial"]
+        elif pattern == "cross_traffic":
+            routes = (
+                GATEWAY_ROUTES["majura_north"] + GATEWAY_ROUTES["majura_south"] +
+                GATEWAY_ROUTES["ghoddod_north"] + GATEWAY_ROUTES["ghoddod_south"]
+            )
+        elif pattern == "brts_convoy":
+            routes = GATEWAY_ROUTES["brts_west"] + GATEWAY_ROUTES["brts_east"]
+        else: # grid_surge
+            routes = [r for r_list in GATEWAY_ROUTES.values() for r in r_list]
+
+        injected = 0
+        for _ in range(count):
+            self.veh_counter += 1
+            veh_id = f"surge_{self.veh_counter}"
+            route_id = random.choice(routes)
+            type_id = "brts_bus" if pattern == "brts_convoy" or "BRTS" in route_id else random.choices(
+                ["car", "motorcycle", "truck", "bus"],
+                weights=[0.60, 0.25, 0.10, 0.05],
+                k=1
+            )[0]
+            try:
+                traci.vehicle.add(vehID=veh_id, routeID=route_id, typeID=type_id)
+                injected += 1
+            except traci.TraCIException:
+                pass
+
+        label_map = {
+            "west_arterial": "West Arterial Surge (Eastbound)",
+            "east_arterial": "East Arterial Surge (Westbound)",
+            "cross_traffic": "Cross-Street Feeder Surge",
+            "brts_convoy": "BRTS Priority Platoon",
+            "grid_surge": "Full Grid Influx Surge"
+        }
+        name = label_map.get(pattern, pattern)
+        self.live_alerts.append({
+            "id": f"ALT_SURGE_{int(time.time() * 1000)}",
+            "timestamp": "Now",
+            "severity": "warning",
+            "title": f"⚡ Traffic Influx Triggered (+{injected} veh)",
+            "message": f"Injected instant {name} burst along corridor."
+        })
+        return injected
+
+    def start_surge_wave(self, rate: float = 150.0, duration: float = 30.0, pattern: str = "balanced"):
+        """Activates a temporary high-volume surge wave for stress-testing."""
+        if self.surge_remaining <= 0:
+            self.surge_previous_rate = self.spawn_rate
+        self.surge_remaining = duration
+        self.spawn_rate = rate
+        self.influx_pattern = pattern
+        self.demand_preset = "custom"
+        self.live_alerts.append({
+            "id": f"ALT_WAVE_{int(time.time() * 1000)}",
+            "timestamp": "Now",
+            "severity": "warning",
+            "title": f"🌊 High Influx Wave Active ({rate:.0f} veh/min)",
+            "message": f"Corridor influx surge active for {duration:.0f}s under '{pattern}' bias."
+        })
 
     def compute_approach_pressures(self, tls_id: str) -> Dict[str, Any]:
         """
@@ -671,7 +755,9 @@ class SumoService:
                     "speedMultiplier": self.speed_multiplier,
                     "scenarioMode": self.scenario_mode,
                     "is5MinRunning": self.is_5min_running,
-                    "demoProgress": 0.0
+                    "demoProgress": 0.0,
+                    "influxPattern": self.influx_pattern,
+                    "surgeRemaining": max(0.0, round(self.surge_remaining, 1))
                 },
                 "signalIntelligence": {},
                 "alerts": self.live_alerts[-5:]
@@ -680,20 +766,51 @@ class SumoService:
         sim_time = float(traci.simulation.getTime())
         vehicles_data = []
         active_ids = traci.vehicle.getIDList()
+        active_set = set(active_ids)
 
-        # Prune vehicle static cache when tracking many vehicles
+        # 1. Manage Bulk Subscriptions (Transform N*6 queries into exactly 1 bulk query)
+        new_vehicles = active_set - self.subscribed_vehicles
+        for vid in new_vehicles:
+            try:
+                traci.vehicle.subscribe(vid, [
+                    tc.VAR_POSITION, 
+                    tc.VAR_ANGLE, 
+                    tc.VAR_SPEED, 
+                    tc.VAR_LANE_ID, 
+                    tc.VAR_WAITING_TIME, 
+                    tc.VAR_ACCUMULATED_WAITING_TIME
+                ])
+                self.subscribed_vehicles.add(vid)
+            except Exception:
+                pass
+                
+        exited = self.subscribed_vehicles - active_set
+        for vid in exited:
+            self.subscribed_vehicles.discard(vid)
+
+        # 2. Prune Static Cache
         if len(self.vehicle_static_cache) > 800:
-            active_set = set(active_ids)
             self.vehicle_static_cache = {k: v for k, v in self.vehicle_static_cache.items() if k in active_set}
 
+        # 3. Fetch All Data in ONE Network Call
+        try:
+            sub_results = traci.vehicle.getAllSubscriptionResults()
+        except Exception:
+            sub_results = {}
+
         for veh_id in active_ids:
+            res = sub_results.get(veh_id)
+            if not res:
+                continue
+                
             try:
-                x, y = traci.vehicle.getPosition(veh_id)
-                angle = traci.vehicle.getAngle(veh_id)
-                speed = traci.vehicle.getSpeed(veh_id)
-                lane_id = traci.vehicle.getLaneID(veh_id)
-                wait_time = traci.vehicle.getWaitingTime(veh_id)
-                accum_wait = traci.vehicle.getAccumulatedWaitingTime(veh_id)
+                pos = res.get(tc.VAR_POSITION, (0.0, 0.0))
+                x, y = pos[0], pos[1]
+                angle = res.get(tc.VAR_ANGLE, 0.0)
+                speed = res.get(tc.VAR_SPEED, 0.0)
+                lane_id = res.get(tc.VAR_LANE_ID, "")
+                wait_time = res.get(tc.VAR_WAITING_TIME, 0.0)
+                accum_wait = res.get(tc.VAR_ACCUMULATED_WAITING_TIME, 0.0)
 
                 # Static attribute cache (eliminates 3 redundant socket queries per vehicle per step)
                 if veh_id not in self.vehicle_static_cache:
@@ -728,7 +845,7 @@ class SumoService:
                     "width": float(width),
                     "isIntruding": is_intruding
                 })
-            except traci.TraCIException:
+            except Exception:
                 continue
 
         # Signal states & intelligence for all 4 corridor junctions
@@ -865,7 +982,9 @@ class SumoService:
                 "speedMultiplier": float(self.speed_multiplier),
                 "scenarioMode": self.scenario_mode,
                 "is5MinRunning": self.is_5min_running,
-                "demoProgress": demo_progress
+                "demoProgress": demo_progress,
+                "influxPattern": self.influx_pattern,
+                "surgeRemaining": max(0.0, round(self.surge_remaining, 1))
             },
             "signalIntelligence": signal_intel,
             "liveTimeline": live_timeline,
@@ -956,6 +1075,10 @@ class SumoService:
         self.vehicle_static_cache.clear()
         self._dynamic_weights = dict(GATEWAY_WEIGHTS)
         self._last_dynamic_update = 0.0
+        self.surge_remaining = 0.0
+        self.surge_previous_rate = self.spawn_rate
+        self.influx_pattern = "balanced"
+        self.subscribed_vehicles.clear()
         simulation_analytics.reset()
 
         for jid in CORRIDOR_TLS:
@@ -1013,6 +1136,7 @@ class SumoService:
         """Asynchronous loop stepping SUMO and broadcasting state to WebSocket clients."""
         while self.traci_started:
             try:
+                loop_start_time = time.time()
                 if not self.is_paused or self.should_step:
                     if self.should_step:
                         self.should_step = False
@@ -1059,9 +1183,10 @@ class SumoService:
                                     return_exceptions=True
                                 )
 
-                    # 5. Broadcast state to connected WebSocket clients
+                    # 5. Get state and update analytics regardless of connected clients
+                    state = self.get_simulation_state()
+                    
                     if self.clients:
-                        state = self.get_simulation_state()
                         payload = json.dumps({
                             "type": "state",
                             "data": state
@@ -1071,12 +1196,32 @@ class SumoService:
                             return_exceptions=True
                         )
 
-                # Step delay adjustment (Exact 1:1 real-time pacing at 1x speed)
+                    # Step delay adjustment (Exact 1:1 real-time pacing at 1x speed)
+                    if self.surge_remaining > 0:
+                        self.surge_remaining -= 0.1
+                        if self.surge_remaining <= 0:
+                            self.surge_remaining = 0.0
+                            self.spawn_rate = self.surge_previous_rate
+                            self.live_alerts.append({
+                                "id": f"ALT_NORM_{int(time.time() * 1000)}",
+                                "timestamp": "Now",
+                                "severity": "info",
+                                "title": "Influx Wave Normalized",
+                                "message": f"Traffic spawn rate normalized back to baseline {self.spawn_rate:.0f} veh/min."
+                            })
+
                 if self.is_paused:
                     await asyncio.sleep(0.1)
                 else:
-                    delay = max(0.01, 0.08 / max(self.speed_multiplier, 0.1))
-                    await asyncio.sleep(delay)
+                    # Adaptive delay to ensure simulation matches real-time pace accurately
+                    loop_elapsed = time.time() - loop_start_time
+                    target_delay = 0.1 / max(self.speed_multiplier, 0.1)
+                    delay = target_delay - loop_elapsed
+                    
+                    if delay > 0.005:
+                        await asyncio.sleep(delay)
+                    else:
+                        await asyncio.sleep(0)  # Pure yield, bypasses Windows 15ms timer limit for true 10x speed
 
             except Exception as e:
                 print(f"Error in SUMO simulation loop: {e}")
@@ -1105,7 +1250,9 @@ class SumoService:
                     "trafficPattern": self.traffic_pattern,
                     "isManualTl": self.is_manual_tl,
                     "is5MinRunning": self.is_5min_running,
-                    "brtsPriorityEnabled": self.brts_priority_enabled
+                    "brtsPriorityEnabled": self.brts_priority_enabled,
+                    "influxPattern": self.influx_pattern,
+                    "surgeRemaining": max(0.0, round(self.surge_remaining, 1))
                 }
             })
 
@@ -1164,6 +1311,17 @@ class SumoService:
                 self.speed_multiplier = max(0.1, float(msg.get("value", 1.0)))
             elif msg_type == "set_brts_priority":
                 self.brts_priority_enabled = bool(msg.get("enabled", True))
+            elif msg_type == "trigger_influx":
+                pattern = msg.get("pattern", "grid_surge")
+                count = int(msg.get("count", 12))
+                self.inject_traffic_influx(pattern=pattern, count=count)
+            elif msg_type == "set_influx_pattern":
+                self.influx_pattern = msg.get("pattern", "balanced")
+            elif msg_type == "start_surge_wave":
+                rate = float(msg.get("rate", 150.0))
+                duration = float(msg.get("duration", 30.0))
+                pattern = msg.get("pattern", self.influx_pattern)
+                self.start_surge_wave(rate=rate, duration=duration, pattern=pattern)
 
             # Broadcast configuration update
             config_payload = json.dumps({
@@ -1177,7 +1335,9 @@ class SumoService:
                     "trafficPattern": self.traffic_pattern,
                     "isManualTl": self.is_manual_tl,
                     "is5MinRunning": self.is_5min_running,
-                    "brtsPriorityEnabled": self.brts_priority_enabled
+                    "brtsPriorityEnabled": self.brts_priority_enabled,
+                    "influxPattern": self.influx_pattern,
+                    "surgeRemaining": max(0.0, round(self.surge_remaining, 1))
                 }
             })
             await asyncio.gather(

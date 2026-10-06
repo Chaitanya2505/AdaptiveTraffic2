@@ -11,6 +11,7 @@ import BRTSLaneGuardPage from './pages/BRTSLaneGuardPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import PredictionsPage from './pages/PredictionsPage';
 import SimulationPage from './pages/SimulationPage';
+import TestCameraPage from './pages/TestCameraPage';
 import LoginPage from './pages/LoginPage';
 
 const LANE_ORDER = ['LANE_1_NORTH', 'LANE_2_SOUTH', 'LANE_3_EAST', 'LANE_4_WEST'];
@@ -137,6 +138,7 @@ export default function App() {
         <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
         <Route path="/predictions" element={<ProtectedRoute><PredictionsPage /></ProtectedRoute>} />
         <Route path="/simulation" element={<ProtectedRoute><SimulationPage /></ProtectedRoute>} />
+        <Route path="/test" element={<ProtectedRoute><TestCameraPage /></ProtectedRoute>} />
         
         {/* Catch-all fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
@@ -144,3 +146,4 @@ export default function App() {
     </BrowserRouter>
   );
 }
+

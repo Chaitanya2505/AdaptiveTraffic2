@@ -9,6 +9,7 @@ import {
   Sparkles, 
   Cpu,
   ShieldAlert,
+  Video,
   X
 } from 'lucide-react';
 
@@ -19,8 +20,10 @@ const navItems = [
   { path: '/brts', label: 'BRTS Lane Guard', icon: ShieldAlert },
   { path: '/analytics', label: 'Analytics', icon: LineChart },
   { path: '/predictions', label: 'Predictions', icon: Sparkles },
-  { path: '/simulation', label: 'What-If Simulation', icon: Cpu }
+  { path: '/simulation', label: 'What-If Simulation', icon: Cpu },
+  { path: '/test', label: 'Camera Test Lab', icon: Video }
 ];
+
 
 export default function Sidebar({ isOpen, onClose }) {
   return (

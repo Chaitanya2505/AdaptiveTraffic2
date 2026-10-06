@@ -27,6 +27,7 @@ import {
   Radio,
   Eye,
   Maximize2,
+  Minimize2,
   ZoomIn,
   ZoomOut,
   Sunrise,
@@ -135,14 +136,23 @@ export default function SimulationPage() {
   const [hasGeometry, setHasGeometry] = useState(false);
   const [tlsStates, setTlsStates] = useState({});
   const [signalIntel, setSignalIntel] = useState({});
-  const [selectedJunction, setSelectedJunction] = useState('J_MAJURA');
-  const [selectedScenario, setSelectedScenario] = useState('adaptive');
-  const [selectedDemand, setSelectedDemand] = useState('peak');
-  const [selectedPattern, setSelectedPattern] = useState('random_dynamic');
+  const [selectedJunction, setSelectedJunction] = useState(() => localStorage.getItem('sim_selectedJunction') || 'J_MAJURA');
+  const [selectedScenario, setSelectedScenario] = useState(() => localStorage.getItem('sim_selectedScenario') || 'adaptive');
+  const [selectedDemand, setSelectedDemand] = useState(() => localStorage.getItem('sim_selectedDemand') || 'peak');
+  const [selectedPattern, setSelectedPattern] = useState(() => localStorage.getItem('sim_selectedPattern') || 'random_dynamic');
+  
+  useEffect(() => {
+    localStorage.setItem('sim_selectedJunction', selectedJunction);
+    localStorage.setItem('sim_selectedScenario', selectedScenario);
+    localStorage.setItem('sim_selectedDemand', selectedDemand);
+    localStorage.setItem('sim_selectedPattern', selectedPattern);
+  }, [selectedJunction, selectedScenario, selectedDemand, selectedPattern]);
+
   const [alerts, setAlerts] = useState([]);
   const [logs, setLogs] = useState([]);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [completedReport, setCompletedReport] = useState(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Canvas Refs & Viewport
   const canvasRef = useRef(null);
@@ -190,6 +200,22 @@ export default function SimulationPage() {
     const scaleY = (canvas.height - 60) / 440;
     baseScaleRef.current = Math.min(scaleX, scaleY) * 1.12;
     draw();
+  };
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        if (containerRef.current) {
+          await containerRef.current.requestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        }
+      }
+    } catch (err) {
+      console.error(`Error attempting to toggle fullscreen: ${err.message}`);
+    }
   };
 
   // Canvas Drawing Routine
@@ -551,8 +577,10 @@ export default function SimulationPage() {
       const canvas = canvasRef.current;
       const container = containerRef.current;
       if (canvas && container) {
+        const isFS = !!document.fullscreenElement;
+        setIsFullscreen(isFS);
         canvas.width = container.clientWidth || 900;
-        canvas.height = 500;
+        canvas.height = isFS ? container.clientHeight : 500;
         resetViewport();
       }
     };
@@ -944,13 +972,11 @@ export default function SimulationPage() {
                   )}
                 </Button>
 
-                <div className="flex gap-2">
-
                 <Button
                   variant="outline"
                   onClick={handleStep}
                   disabled={!stats.isPaused}
-                  className="flex-1 py-2"
+                  className="w-full py-2"
                 >
                   <SkipForward className="h-4 w-4" />
                   <span>Step (0.1s)</span>
@@ -959,13 +985,12 @@ export default function SimulationPage() {
                 <Button
                   variant="outline"
                   onClick={handleReset}
-                  className="p-2 border-slate-800 hover:bg-slate-900 text-slate-400 hover:text-white"
-                  title="Reset Corridor Simulation"
+                  className="w-full py-2 border-red-900/50 hover:bg-red-950/50 text-red-400 hover:text-red-300 transition-colors"
+                  title="Stop & Reset Simulation"
                 >
                   <RotateCcw className="h-4 w-4" />
+                  <span>Stop & Reset</span>
                 </Button>
-
-                </div>
               </div>
             </div>
           </Card>
@@ -987,12 +1012,21 @@ export default function SimulationPage() {
                   <Maximize2 className="h-3.5 w-3.5 text-emerald-400" />
                   <span>Fit View</span>
                 </Button>
+                <Button
+                  variant="outline"
+                  onClick={toggleFullscreen}
+                  className="py-1.5 px-2.5 text-xs border-slate-800 hover:bg-slate-900 text-slate-300 flex items-center gap-1"
+                  title="Toggle Full Screen View"
+                >
+                  {isFullscreen ? <Minimize2 className="h-3.5 w-3.5 text-emerald-400" /> : <Maximize2 className="h-3.5 w-3.5 text-emerald-400" />}
+                  <span>{isFullscreen ? 'Exit Full Screen' : 'Full Screen'}</span>
+                </Button>
               </div>
             }
           >
             <div 
               ref={containerRef}
-              className="relative rounded-xl border border-slate-850 bg-slate-950 overflow-hidden select-none"
+              className={`relative rounded-xl border border-slate-850 bg-[#0b0c13] overflow-hidden select-none ${isFullscreen ? 'flex items-center justify-center' : ''}`}
             >
               {/* Canvas Overlay Header */}
               <div className="absolute top-3 left-3 z-10 flex flex-wrap items-center gap-2 bg-slate-900/95 border border-slate-800 px-3 py-1.5 rounded-lg backdrop-blur-md text-[11px] text-slate-300 shadow-lg">
@@ -1015,7 +1049,7 @@ export default function SimulationPage() {
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
                 onWheel={handleWheel}
-                className="w-full h-[500px] bg-[#0b0c13] block cursor-grab active:cursor-grabbing"
+                className={`w-full bg-[#0b0c13] block cursor-grab active:cursor-grabbing ${isFullscreen ? 'h-screen object-contain' : 'h-[500px]'}`}
               />
             </div>
           </Card>

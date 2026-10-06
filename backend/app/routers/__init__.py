@@ -5,6 +5,7 @@ from app.routers.violations import router as violations_router
 from app.routers.auth import router as auth_router
 from app.routers.simulation import router as simulation_router
 from app.routers.brts import router as brts_router
+from app.routers.test_camera import router as test_camera_router
 
 __all__ = [
     "junctions_router",
@@ -13,5 +14,7 @@ __all__ = [
     "violations_router",
     "auth_router",
     "simulation_router",
-    "brts_router"
+    "brts_router",
+    "test_camera_router"
 ]
+

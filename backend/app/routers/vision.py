@@ -230,21 +230,26 @@ async def detect_batch_vehicles(
         queue_summary=queue_lengths
     )
 
-    # Prepare real-time override so the cycle adapts to THIS exact frame, not 5-min history
-
-    live_lane_counts = {lane: data["vehicles"] for lane, data in queue_lengths.items()}
-
-    # Trigger Webster's signal optimization algorithm using these fresh batch detections
+    # Trigger Queue-Responsive Modified Webster Controller (QR-MWC) using fresh camera observations
     try:
-        optimized_signal = await SignalService.optimize(db, junction_id, mode="VISION", lane_counts_override=live_lane_counts)
+        optimized_signal = await SignalService.optimize(
+            db=db,
+            junction_id=junction_id,
+            mode="VISION",
+            lane_counts_override=queue_lengths
+        )
         signal_data = {
             "phase": optimized_signal.phase,
-            "duration": optimized_signal.duration
+            "duration": optimized_signal.duration,
+            "phase_plan": getattr(optimized_signal, "phase_plan", {}),
+            "cycle_length": getattr(optimized_signal, "cycle_length", 60),
+            "critical_ratio": getattr(optimized_signal, "critical_ratio", 0.65)
         }
     except Exception as e:
         signal_data = {"error": str(e)}
 
     response = {
+
 
         "junction_id": junction_id,
         "batch_size": len(files),

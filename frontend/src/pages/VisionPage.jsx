@@ -51,28 +51,38 @@ export default function VisionPage() {
 
   const handleLaneFileChange = (idx, file) => {
     if (!file) return;
-    const isVideo = file.type.startsWith('video/');
+    const isVideo = file.type.startsWith('video/') || file.name.match(/\.(mp4|webm|ogg|mov)$/i);
     const previewUrl = URL.createObjectURL(file);
 
-    setLaneFeeds((prev) => ({
-      ...prev,
-      [idx]: {
-        file,
-        preview: previewUrl,
-        raw: previewUrl,
-        type: isVideo ? 'video' : 'image',
-        isCustomUpload: true
+    setLaneFeeds((prev) => {
+      if (prev[idx]?.preview && prev[idx].isCustomUpload) {
+        URL.revokeObjectURL(prev[idx].preview);
       }
-    }));
+      return {
+        ...prev,
+        [idx]: {
+          file,
+          preview: previewUrl,
+          raw: previewUrl,
+          type: isVideo ? 'video' : 'image',
+          isCustomUpload: true
+        }
+      };
+    });
     setVisionSignalState((prev) => ({ ...prev, isAutoCycleActive: false }));
     setVisionAnalysis({ isAnalyzed: false });
   };
 
   const handleRemoveLaneFeed = (idx) => {
-    setLaneFeeds((prev) => ({
-      ...prev,
-      [idx]: { file: null, preview: null, raw: null, type: null, isCustomUpload: false }
-    }));
+    setLaneFeeds((prev) => {
+      if (prev[idx]?.preview && prev[idx].isCustomUpload) {
+        URL.revokeObjectURL(prev[idx].preview);
+      }
+      return {
+        ...prev,
+        [idx]: { file: null, preview: null, raw: null, type: null, isCustomUpload: false }
+      };
+    });
     setVisionSignalState((prev) => ({ ...prev, isAutoCycleActive: false }));
     setVisionAnalysis({ isAnalyzed: false });
   };
@@ -322,14 +332,14 @@ export default function VisionPage() {
       const p4 = q4 ? q4.pce : (prev.laneTimers?.LANE_4_WEST?.pce || 0);
       const totalPce = Math.max(1, (p1 + p2 + p3 + p4));
 
-      // Note: If we are updating mid-cycle, we should not reset the active lane.
-      // We keep the current remainingSec if it's not the first scan, but if it is the first scan, we start with l1Duration.
-      const l1Duration = Math.max(10, Math.min(60, Math.round(10 + 50 * (p1 / totalPce))));
-      const l2Duration = Math.max(10, Math.min(60, Math.round(10 + 50 * (p2 / totalPce))));
-      const l3Duration = Math.max(10, Math.min(60, Math.round(10 + 50 * (p3 / totalPce))));
-      const l4Duration = Math.max(10, Math.min(60, Math.round(10 + 50 * (p4 / totalPce))));
+      // Use backend QR-MWC (Queue-Responsive Modified Webster Controller) phase plan if available
+      const backendPlan = data.signal_optimization?.phase_plan || {};
+      const l1Duration = backendPlan['LANE_1_NORTH'] ?? Math.max(10, Math.min(60, Math.round(10 + 50 * (p1 / totalPce))));
+      const l2Duration = backendPlan['LANE_2_SOUTH'] ?? Math.max(10, Math.min(60, Math.round(10 + 50 * (p2 / totalPce))));
+      const l3Duration = backendPlan['LANE_3_EAST'] ?? Math.max(10, Math.min(60, Math.round(10 + 50 * (p3 / totalPce))));
+      const l4Duration = backendPlan['LANE_4_WEST'] ?? Math.max(10, Math.min(60, Math.round(10 + 50 * (p4 / totalPce))));
       
-      console.log(`[VisionPage] New Adaptive Cycle Timers Calculated: L1=${l1Duration}s, L2=${l2Duration}s, L3=${l3Duration}s, L4=${l4Duration}s`);
+      console.log(`[VisionPage] QR-MWC Coordinated Plan Applied: L1=${l1Duration}s, L2=${l2Duration}s, L3=${l3Duration}s, L4=${l4Duration}s | Cycle=${data.signal_optimization?.cycle_length || (l1Duration+l2Duration+l3Duration+l4Duration)}s`);
 
       const isFirstScan = !prev.isAutoCycleActive;
       const nextRemainingSec = isFirstScan ? l1Duration : prev.remainingSec;
@@ -352,6 +362,7 @@ export default function VisionPage() {
       };
     });
   };
+
 
   const getDensityLabel = (vehCount) => {
     const score = Math.min(100, Math.round((vehCount / 50) * 100));
@@ -513,10 +524,12 @@ export default function VisionPage() {
                   <>
                     {feed.type === 'video' ? (
                       <video
+                        key={feed.preview}
                         id={`video-feed-${idx}`}
                         src={feed.preview}
                         controls
                         autoPlay
+                        playsInline
                         loop
                         muted
                         className="h-full w-full object-cover"

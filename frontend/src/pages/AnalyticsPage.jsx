@@ -109,8 +109,9 @@ export default function AnalyticsPage() {
             scenarioMode: state.stats?.scenarioMode || 'adaptive'
           });
 
-          // Live update analytics store in real time
-          if (state.liveTimeline && state.liveTimeline.length > 0) {
+          // Live update analytics store in real time ONLY if the simulation is actively running
+          // If it's paused (e.g., just completed a 5-min demo), keep the full REST API report intact!
+          if (!state.stats?.isPaused && state.liveTimeline && state.liveTimeline.length > 0) {
             setAnalyticsData(prev => ({
               ...prev,
               kpis: {

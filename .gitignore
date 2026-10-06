@@ -73,3 +73,4 @@ backend/app/simulation/*.out
 .cache/
 
 data/
+simulation_runs/
