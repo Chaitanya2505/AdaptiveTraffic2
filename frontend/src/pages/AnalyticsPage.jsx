@@ -954,7 +954,7 @@ export default function AnalyticsPage() {
             <MapContainer center={[21.1820, 72.8150]} zoom={13} style={{ height: '100%', width: '100%' }}>
               <TileLayer
                 attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
               {heatmapNodes.map((node) => {
                 const getRadius = (n) => {
