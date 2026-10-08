@@ -99,22 +99,30 @@ async def export_simulation_html_report():
         <div class="subtitle">Session ID: {report['runId']} | Generated: {report['generatedAt']} | Network: {cfg['networkCorridor']}</div>
     </div>
 
-    <div class="grid">
+    <div class="grid" style="grid-template-columns: repeat(3, 1fr);">
         <div class="card">
-            <div class="card-label">Throughput</div>
-            <div class="card-val">{kpis['throughputVph']} <span style="font-size:12px;color:#94a3b8">veh/hr</span></div>
+            <div class="card-label">Corridor Throughput</div>
+            <div class="card-val" style="color:#10b981">{kpis.get('throughputVph', 0)} <span style="font-size:12px;color:#94a3b8">veh/hr</span></div>
         </div>
         <div class="card">
-            <div class="card-label">Average Speed</div>
-            <div class="card-val">{kpis['avgSpeedKmh']} <span style="font-size:12px;color:#94a3b8">km/h</span></div>
+            <div class="card-label">Corridor Speed</div>
+            <div class="card-val" style="color:#2dd4bf">{kpis.get('avgSpeedKmh', 0)} <span style="font-size:12px;color:#94a3b8">km/h</span></div>
         </div>
         <div class="card">
             <div class="card-label">Average Delay</div>
-            <div class="card-val">{kpis['avgWaitTimeSec']}s</div>
+            <div class="card-val" style="color:#fbbf24">{kpis.get('avgWaitTimeSec', 0)}s</div>
         </div>
         <div class="card">
-            <div class="card-label">BRTS Intrusions</div>
-            <div class="card-val" style="color:#f87171">{kpis['totalBrtsIntrusions']}</div>
+            <div class="card-label">Peak Queue</div>
+            <div class="card-val" style="color:#f97316">{kpis.get('maxQueueVehicles', 0)} <span style="font-size:12px;color:#94a3b8">veh</span></div>
+        </div>
+        <div class="card">
+            <div class="card-label">CO2 Generated</div>
+            <div class="card-val" style="color:#14b8a6">{kpis.get('totalCO2Kg', 0)} <span style="font-size:12px;color:#94a3b8">kg</span></div>
+        </div>
+        <div class="card">
+            <div class="card-label">Fuel Saved</div>
+            <div class="card-val" style="color:#10b981">{kpis.get('fuelSavedLiters', 0)} <span style="font-size:12px;color:#94a3b8">Liters</span></div>
         </div>
     </div>
 
@@ -167,25 +175,7 @@ async def export_simulation_html_report():
         </tbody>
     </table>
 
-    <div class="section-title">4. What-If Comparison (vs Fixed-Time Baseline)</div>
-    <div class="grid">
-        <div class="card">
-            <div class="card-label">Throughput Improvement</div>
-            <div class="card-val" style="color:#34d399">+{report['whatIfComparison']['improvements']['throughputGainPct']}%</div>
-        </div>
-        <div class="card">
-            <div class="card-label">Corridor Speed Gain</div>
-            <div class="card-val" style="color:#34d399">+{report['whatIfComparison']['improvements']['speedIncreasePct']}%</div>
-        </div>
-        <div class="card">
-            <div class="card-label">Waiting Time Reduction</div>
-            <div class="card-val" style="color:#38bdf8">-{report['whatIfComparison']['improvements']['waitReductionPct']}%</div>
-        </div>
-        <div class="card">
-            <div class="card-label">Queue Length Reduction</div>
-            <div class="card-val" style="color:#38bdf8">-{report['whatIfComparison']['improvements']['queueReductionPct']}%</div>
-        </div>
-    </div>
+
 </body>
 </html>
 """

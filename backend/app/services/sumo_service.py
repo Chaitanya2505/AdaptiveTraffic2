@@ -957,17 +957,6 @@ class SumoService:
         dyn_wait = round(latest_pt["avgWaitTime"], 1) if latest_pt else 0.0
         dyn_queue = latest_pt["maxQueue"] if latest_pt else 0
 
-        live_whatif = simulation_analytics.cached_whatif or simulation_analytics._compute_ground_truth_comparison(
-            cur_throughput=round((len(simulation_analytics.completed_vehicles) / max(sim_time, 1.0)) * 3600, 1),
-            cur_speed=round(avg_speed * 3.6, 1),
-            cur_wait=dyn_wait,
-            cur_queue=dyn_queue,
-            cur_co2=round(simulation_analytics.total_co2_grams / 1000.0, 2),
-            cur_fuel=round(simulation_analytics.total_fuel_ml / 1000.0, 2),
-            cur_completed=len(simulation_analytics.completed_vehicles),
-            junctions_data=live_junctions
-        )
-
         state_payload = {
             "time": sim_time,
             "vehicles": vehicles_data,
@@ -991,7 +980,6 @@ class SumoService:
             "liveHeatmaps": live_heatmaps,
             "liveBottlenecks": live_bottlenecks,
             "liveJunctions": live_junctions,
-            "liveWhatIf": live_whatif,
             "sustainability": {
                 "co2Kg": round(simulation_analytics.total_co2_grams / 1000.0, 2),
                 "fuelLiters": round(simulation_analytics.total_fuel_ml / 1000.0, 2)

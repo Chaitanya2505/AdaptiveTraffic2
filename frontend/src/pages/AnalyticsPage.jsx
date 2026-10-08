@@ -2,34 +2,34 @@ import React, { useState, useEffect, useRef } from 'react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
-import { 
-  ResponsiveContainer, 
-  AreaChart, 
-  Area, 
-  LineChart, 
-  Line, 
-  BarChart, 
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  LineChart,
+  Line,
+  BarChart,
   Bar,
-  XAxis, 
-  YAxis, 
-  Tooltip, 
-  CartesianGrid, 
-  Legend 
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  Legend
 } from 'recharts';
-import { 
-  BarChart3, 
-  TrendingUp, 
-  Map as MapIcon, 
-  Download, 
-  FileText, 
-  Layers, 
-  Zap, 
-  AlertTriangle, 
-  CheckCircle2, 
-  Play, 
-  Pause, 
-  RotateCcw, 
-  Leaf, 
+import {
+  BarChart3,
+  TrendingUp,
+  Map as MapIcon,
+  Download,
+  FileText,
+  Layers,
+  Zap,
+  AlertTriangle,
+  CheckCircle2,
+  Play,
+  Pause,
+  RotateCcw,
+  Leaf,
   Fuel,
   Compass,
   Activity,
@@ -112,23 +112,26 @@ export default function AnalyticsPage() {
           // Live update analytics store in real time ONLY if the simulation is actively running
           // If it's paused (e.g., just completed a 5-min demo), keep the full REST API report intact!
           if (!state.stats?.isPaused && state.liveTimeline && state.liveTimeline.length > 0) {
+            const latestTimeline = state.liveTimeline[state.liveTimeline.length - 1];
+            const timeDuration = Math.max(state.time || 1.0, 1.0);
+            
             setAnalyticsData(prev => ({
               ...prev,
               kpis: {
                 ...prev?.kpis,
-                throughputVph: state.liveWhatIf?.optimized?.throughput ?? prev?.kpis?.throughputVph ?? 0,
-                avgSpeedKmh: state.liveWhatIf?.optimized?.avgSpeed ?? prev?.kpis?.avgSpeedKmh ?? 0,
-                avgWaitTimeSec: state.liveWhatIf?.optimized?.avgWait ?? prev?.kpis?.avgWaitTimeSec ?? 0,
-                maxQueueVehicles: state.liveWhatIf?.optimized?.maxQueue ?? prev?.kpis?.maxQueueVehicles ?? 0,
+                throughputVph: latestTimeline ? (latestTimeline.completedVehicles / timeDuration) * 3600 : prev?.kpis?.throughputVph ?? 0,
+                avgSpeedKmh: latestTimeline?.avgSpeed ?? prev?.kpis?.avgSpeedKmh ?? 0,
+                avgWaitTimeSec: latestTimeline?.avgWaitTime ?? prev?.kpis?.avgWaitTimeSec ?? 0,
+                maxQueueVehicles: latestTimeline?.maxQueue ?? prev?.kpis?.maxQueueVehicles ?? 0,
                 totalCO2Kg: state.sustainability?.co2Kg ?? prev?.kpis?.totalCO2Kg ?? 0,
                 totalFuelLiters: state.sustainability?.fuelLiters ?? prev?.kpis?.totalFuelLiters ?? 0,
-                co2SavedKg: state.liveWhatIf?.improvements?.co2SavedKg ?? prev?.kpis?.co2SavedKg ?? 0,
-                fuelSavedLiters: state.liveWhatIf?.improvements?.fuelSavedLiters ?? prev?.kpis?.fuelSavedLiters ?? 0
+                co2SavedKg: prev?.kpis?.co2SavedKg ?? 0,
+                fuelSavedLiters: prev?.kpis?.fuelSavedLiters ?? 0
               },
               junctions: state.liveJunctions || prev?.junctions,
               trends: state.liveTimeline,
               bottlenecks: state.liveBottlenecks || prev?.bottlenecks,
-              whatIfComparison: state.liveWhatIf || prev?.whatIfComparison,
+              whatIfComparison: prev?.whatIfComparison,
               spatialHeatmaps: state.liveHeatmaps || prev?.spatialHeatmaps
             }));
           }
@@ -316,6 +319,20 @@ export default function AnalyticsPage() {
           </Button>
         </div>
       </div>
+      
+      {/* Empty State Warning */}
+      {analyticsData?.isInitialEmptyState && !simStatus.is5MinRunning && (
+        <div className="p-4 rounded-xl border border-amber-500/40 bg-amber-950/20 backdrop-blur-md shadow-2xl mb-6">
+          <div className="flex flex-col items-center justify-center text-center space-y-2">
+            <Activity className="h-8 w-8 text-amber-500 animate-pulse mb-2" />
+            <h3 className="text-amber-400 font-bold text-lg">Awaiting Live Telemetry Data</h3>
+            <p className="text-slate-300 text-sm max-w-xl">
+              The analytics engine is online, but no vehicles have been processed yet. 
+              Please navigate to the <strong>What-If Simulation</strong> page and click <strong>"Start Simulation"</strong> to begin feeding real-time physics data into this dashboard.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Live Simulation Progress Banner */}
       {simStatus.is5MinRunning && (
@@ -330,7 +347,7 @@ export default function AnalyticsPage() {
             </span>
           </div>
           <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-            <div 
+            <div
               className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full transition-all duration-300"
               style={{ width: `${simStatus.demoProgress}%` }}
             />
@@ -385,7 +402,6 @@ export default function AnalyticsPage() {
       <div className="flex border-b border-slate-800 space-x-2 overflow-x-auto">
         {[
           { id: 'junctions', name: '🚦 4-Junction Deep-Dive', icon: Activity },
-          { id: 'whatif', name: '⚡ What-If Baseline Gains', icon: Zap },
           { id: 'trends', name: '📈 Live Traffic Trends', icon: TrendingUp },
           { id: 'heatmaps', name: '🗺️ Dynamic Spatial Heatmaps', icon: MapIcon },
           { id: 'bottlenecks', name: '⚠️ Dynamic Hotspots Ranking', icon: AlertTriangle },
@@ -397,11 +413,10 @@ export default function AnalyticsPage() {
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
-              className={`pb-3 px-4 text-xs font-bold flex items-center gap-2 border-b-2 transition-all whitespace-nowrap ${
-                isActive
-                  ? 'border-emerald-500 text-emerald-400'
-                  : 'border-transparent text-slate-400 hover:text-white'
-              }`}
+              className={`pb-3 px-4 text-xs font-bold flex items-center gap-2 border-b-2 transition-all whitespace-nowrap ${isActive
+                ? 'border-emerald-500 text-emerald-400'
+                : 'border-transparent text-slate-400 hover:text-white'
+                }`}
             >
               <TabIcon className="h-4 w-4" />
               <span>{t.name}</span>
@@ -421,11 +436,10 @@ export default function AnalyticsPage() {
             </span>
             <button
               onClick={() => setSelectedJunctionId('ALL')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
-                selectedJunctionId === 'ALL'
-                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-850'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${selectedJunctionId === 'ALL'
+                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-850'
+                }`}
             >
               <span>🌟 All 4 Junctions Overview</span>
             </button>
@@ -437,11 +451,10 @@ export default function AnalyticsPage() {
                 <button
                   key={j.id}
                   onClick={() => setSelectedJunctionId(j.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
-                    isSelected
-                      ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-850'
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${isSelected
+                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-850'
+                    }`}
                 >
                   <span className="font-mono opacity-80">{j.code}:</span>
                   <span>{j.shortName}</span>
@@ -463,7 +476,7 @@ export default function AnalyticsPage() {
                 {CORRIDOR_JUNCTION_META.map(j => {
                   const jd = junctions[j.id] || {};
                   return (
-                    <div 
+                    <div
                       key={j.id}
                       onClick={() => setSelectedJunctionId(j.id)}
                       className="cursor-pointer group rounded-xl border border-slate-850 bg-slate-950 p-4 hover:border-emerald-500/50 transition duration-200 shadow-md hover:shadow-emerald-500/10 space-y-3"
@@ -750,131 +763,7 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* TAB 2: WHAT-IF BASELINE GAINS */}
-      {activeTab === 'whatif' && (
-        <div className="space-y-6">
-          {/* Gains Banner */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-950/20">
-              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Throughput Gain</span>
-              <span className="text-2xl font-extrabold text-emerald-400 mt-1 block font-mono">+{whatIf.improvements.throughputGainPct}%</span>
-            </div>
-            <div className="p-4 rounded-xl border border-cyan-500/30 bg-cyan-950/20">
-              <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">Speed Increase</span>
-              <span className="text-2xl font-extrabold text-cyan-400 mt-1 block font-mono">+{whatIf.improvements.speedIncreasePct}%</span>
-            </div>
-            <div className="p-4 rounded-xl border border-teal-500/30 bg-teal-950/20">
-              <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider block">Delay Reduction</span>
-              <span className="text-2xl font-extrabold text-teal-400 mt-1 block font-mono">-{whatIf.improvements.waitReductionPct}%</span>
-            </div>
-            <div className="p-4 rounded-xl border border-indigo-500/30 bg-indigo-950/20">
-              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block">CO2 Emissions Saved</span>
-              <span className="text-2xl font-extrabold text-indigo-400 mt-1 block font-mono">-{whatIf.improvements.co2ReductionPct}%</span>
-            </div>
-          </div>
 
-          {/* Side by Side Corridor Comparison Table */}
-          <Card title="Corridor Ground-Truth Telemetry Comparison" subtitle="Empirical dual-run SUMO measurements against Fixed-Time baseline">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-300">
-                <thead>
-                  <tr className="border-b border-slate-850 text-slate-500 uppercase tracking-wider font-semibold">
-                    <th className="pb-3 py-2">Performance Metric</th>
-                    <th className="pb-3 py-2 text-slate-400">Fixed-Time Baseline</th>
-                    <th className="pb-3 py-2 text-emerald-400">Adaptive TraCI Policy</th>
-                    <th className="pb-3 py-2 text-right">Empirical Benefit</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-850/50">
-                  <tr>
-                    <td className="py-3.5 font-semibold text-white">Throughput Capacity Rate</td>
-                    <td className="py-3.5 font-mono text-slate-400">{whatIf.baseline.throughput} veh/hr</td>
-                    <td className="py-3.5 font-mono text-emerald-400 font-bold">{whatIf.optimized.throughput} veh/hr</td>
-                    <td className="py-3.5 font-mono text-emerald-400 text-right font-bold">+{whatIf.improvements.throughputGainPct}%</td>
-                  </tr>
-                  <tr>
-                    <td className="py-3.5 font-semibold text-white">Average Corridor Speed</td>
-                    <td className="py-3.5 font-mono text-slate-400">{whatIf.baseline.avgSpeed} km/h</td>
-                    <td className="py-3.5 font-mono text-cyan-400 font-bold">{whatIf.optimized.avgSpeed} km/h</td>
-                    <td className="py-3.5 font-mono text-cyan-400 text-right font-bold">+{whatIf.improvements.speedIncreasePct}%</td>
-                  </tr>
-                  <tr>
-                    <td className="py-3.5 font-semibold text-white">Average Intersection Stop Delay</td>
-                    <td className="py-3.5 font-mono text-slate-400">{whatIf.baseline.avgWait}s</td>
-                    <td className="py-3.5 font-mono text-teal-400 font-bold">{whatIf.optimized.avgWait}s</td>
-                    <td className="py-3.5 font-mono text-teal-400 text-right font-bold">-{whatIf.improvements.waitReductionPct}%</td>
-                  </tr>
-                  <tr>
-                    <td className="py-3.5 font-semibold text-white">Total CO2 Emissions Generated</td>
-                    <td className="py-3.5 font-mono text-slate-400">{whatIf.baseline.totalCO2Kg} kg</td>
-                    <td className="py-3.5 font-mono text-emerald-400 font-bold">{whatIf.optimized.totalCO2Kg} kg</td>
-                    <td className="py-3.5 font-mono text-emerald-400 text-right font-bold">-{whatIf.improvements.co2ReductionPct}% ({whatIf.improvements.co2SavedKg} kg saved)</td>
-                  </tr>
-                  <tr>
-                    <td className="py-3.5 font-semibold text-white">Total Fuel Consumed</td>
-                    <td className="py-3.5 font-mono text-slate-400">{whatIf.baseline.totalFuelLiters} L</td>
-                    <td className="py-3.5 font-mono text-emerald-400 font-bold">{whatIf.optimized.totalFuelLiters} L</td>
-                    <td className="py-3.5 font-mono text-emerald-400 text-right font-bold">-{whatIf.improvements.fuelReductionPct}% ({whatIf.improvements.fuelSavedLiters} L saved)</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </Card>
-
-          {/* 4-Junction What-If Comparative Table */}
-          <Card title="4-Junction Localized What-If Gains" subtitle="Comparative breakdown showing delay reductions and throughput gains for every individual corridor intersection">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-300">
-                <thead>
-                  <tr className="border-b border-slate-850 text-slate-500 uppercase tracking-wider font-semibold">
-                    <th className="pb-3 py-2">Intersection Node</th>
-                    <th className="pb-3 py-2">HCM LOS</th>
-                    <th className="pb-3 py-2">Fixed-Time Delay</th>
-                    <th className="pb-3 py-2 text-emerald-400">Adaptive Delay</th>
-                    <th className="pb-3 py-2">Delay Reduction</th>
-                    <th className="pb-3 py-2">Fixed Capacity</th>
-                    <th className="pb-3 py-2 text-emerald-400">Adaptive Capacity</th>
-                    <th className="pb-3 py-2 text-right">Capacity Gain</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-850/50">
-                  {whatIf.junctionComparisons && whatIf.junctionComparisons.length > 0 ? (
-                    whatIf.junctionComparisons.map((jc) => (
-                      <tr key={jc.junctionId} className="hover:bg-slate-900/40">
-                        <td className="py-3 font-bold text-white">{jc.junctionName}</td>
-                        <td className="py-3">{renderLosBadge(jc.levelOfService)}</td>
-                        <td className="py-3 font-mono text-slate-400">{jc.baselineDelay}s</td>
-                        <td className="py-3 font-mono text-emerald-400 font-bold">{jc.optimizedDelay}s</td>
-                        <td className="py-3 font-mono text-teal-400 font-bold">-{jc.delayReductionPct}%</td>
-                        <td className="py-3 font-mono text-slate-400">{jc.baselineThroughput} vph</td>
-                        <td className="py-3 font-mono text-emerald-400 font-bold">{jc.optimizedThroughput} vph</td>
-                        <td className="py-3 font-mono text-emerald-400 text-right font-bold">+{jc.throughputGainPct}%</td>
-                      </tr>
-                    ))
-                  ) : (
-                    CORRIDOR_JUNCTION_META.map(j => {
-                      const jd = junctions[j.id] || {};
-                      const jw = jd.whatIf || {};
-                      return (
-                        <tr key={j.id} className="hover:bg-slate-900/40">
-                          <td className="py-3 font-bold text-white">{j.name}</td>
-                          <td className="py-3">{renderLosBadge(jd.levelOfService || 'A')}</td>
-                          <td className="py-3 font-mono text-slate-400">{jw.baselineDelay || 0}s</td>
-                          <td className="py-3 font-mono text-emerald-400 font-bold">{jd.avgDelaySec || 0}s</td>
-                          <td className="py-3 font-mono text-teal-400 font-bold">-{jw.delayReductionPct || 0}%</td>
-                          <td className="py-3 font-mono text-slate-400">{jw.baselineThroughput || 0} vph</td>
-                          <td className="py-3 font-mono text-emerald-400 font-bold">{jd.throughputVph || 0} vph</td>
-                          <td className="py-3 font-mono text-emerald-400 text-right font-bold">+{jw.throughputGainPct || 0}%</td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
-      )}
 
       {/* TAB 3: LIVE REAL-TIME TRENDS CHARTS */}
       {activeTab === 'trends' && (
@@ -885,12 +774,12 @@ export default function AnalyticsPage() {
                 <AreaChart data={trends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="volGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="queueGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
@@ -925,8 +814,8 @@ export default function AnalyticsPage() {
 
       {/* TAB 4: DYNAMIC SPATIAL HEATMAPS */}
       {activeTab === 'heatmaps' && (
-        <Card 
-          title="Dynamic Spatial Congestion Heatmap (Surat Corridor)" 
+        <Card
+          title="Dynamic Spatial Congestion Heatmap (Surat Corridor)"
           subtitle="Real-world Surat geographic coordinates with live intensity bubble pulsing"
           action={
             <div className="flex gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800">
@@ -938,11 +827,10 @@ export default function AnalyticsPage() {
                 <button
                   key={ht.id}
                   onClick={() => setHeatmapType(ht.id)}
-                  className={`py-1 px-2.5 rounded text-[10px] font-bold transition ${
-                    heatmapType === ht.id 
-                      ? 'bg-emerald-500 text-white shadow' 
-                      : 'text-slate-400 hover:text-white'
-                  }`}
+                  className={`py-1 px-2.5 rounded text-[10px] font-bold transition ${heatmapType === ht.id
+                    ? 'bg-emerald-500 text-white shadow'
+                    : 'text-slate-400 hover:text-white'
+                    }`}
                 >
                   {ht.label}
                 </button>

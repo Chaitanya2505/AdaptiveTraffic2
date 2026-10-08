@@ -414,16 +414,6 @@ class SimulationAnalyticsEngine:
         cur_co2 = round(self.total_co2_grams / 1000.0, 2)
         cur_fuel = round(self.total_fuel_ml / 1000.0, 2)
 
-        self.cached_whatif = self._compute_ground_truth_comparison(
-            cur_throughput=cur_tp,
-            cur_speed=cur_spd,
-            cur_wait=cur_wait,
-            cur_queue=cur_q,
-            cur_co2=cur_co2,
-            cur_fuel=cur_fuel,
-            cur_completed=len(self.completed_vehicles),
-            junctions_data=self.cached_junctions
-        )
         self.last_cache_update_time = sim_time
 
     def generate_final_analytics(self, baseline_report: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -464,22 +454,12 @@ class SimulationAnalyticsEngine:
             avg_wait=avg_wait_time,
             bottlenecks=bottleneck_data
         )
-        what_if_comparison = self._compute_ground_truth_comparison(
-            cur_throughput=throughput_vph,
-            cur_speed=avg_corridor_speed,
-            cur_wait=avg_wait_time,
-            cur_queue=max_queue,
-            cur_co2=total_co2_kg,
-            cur_fuel=total_fuel_liters,
-            cur_completed=total_completed,
-            baseline_report=baseline_report,
-            junctions_data=junctions_data
-        )
         spatial_heatmaps = self._generate_spatial_heatmaps()
 
         report = {
             "runId": self.active_run_id,
             "generatedAt": datetime.now(timezone.utc).isoformat(),
+            "isInitialEmptyState": len(self.timeline) == 0,
             "configuration": {
                 "scenarioName": self.scenario_name,
                 "scenarioMode": self.scenario_mode,
@@ -502,15 +482,12 @@ class SimulationAnalyticsEngine:
                 "congestionScore": avg_congestion,
                 "peakCongestion": peak_congestion,
                 "totalCO2Kg": total_co2_kg,
-                "totalFuelLiters": total_fuel_liters,
-                "co2SavedKg": what_if_comparison.get("improvements", {}).get("co2SavedKg", 0.0),
-                "fuelSavedLiters": what_if_comparison.get("improvements", {}).get("fuelSavedLiters", 0.0)
+                "totalFuelLiters": total_fuel_liters
             },
             "junctions": junctions_data,
             "trends": self.timeline,
             "bottlenecks": bottleneck_data,
             "recommendations": recommendations,
-            "whatIfComparison": what_if_comparison,
             "spatialHeatmaps": spatial_heatmaps
         }
 
@@ -534,7 +511,7 @@ class SimulationAnalyticsEngine:
 
             # HCM Control Delay: uniform signal clearance delay (base) + incremental queue delay
             base_d = (total_delay / serviced) if serviced > 0 else 2.5
-            avg_delay = round(max(8.0, min(65.0, 8.0 + (base_d * 1.5) + (q_len * 1.1))), 1)
+            avg_delay = round(max(8.0, 8.0 + (base_d * 1.5) + (q_len * 1.1)), 1)
 
             los_info = get_hcm_los(avg_delay)
 
@@ -562,7 +539,7 @@ class SimulationAnalyticsEngine:
                 app_serviced = len(app_val.get("vehicles_serviced", set()))
                 app_d_base = (app_val.get("delay_sec", 0.0) / max(app_serviced, 1)) if app_serviced > 0 else 2.0
                 app_q = app_val.get("max_queue", 0)
-                app_delay = round(max(8.0, min(55.0, 8.0 + (app_d_base * 1.3) + (app_q * 0.9))), 1)
+                app_delay = round(max(8.0, 8.0 + (app_d_base * 1.3) + (app_q * 0.9)), 1)
                 approaches_summary[app_name] = {
                     "vehiclesCount": app_veh_count,
                     "avgSpeedKmh": app_spd,
@@ -585,35 +562,7 @@ class SimulationAnalyticsEngine:
             speed_factor = max(0.0, min(20.0, ((45.0 - avg_spd) / 35.0) * 20.0))
             cong_score = round(min(100.0, max(5.0, delay_factor + queue_factor + speed_factor)), 1)
 
-            # Dynamic What-If Comparison against empirical or model-derived baseline
-            if self.scenario_mode == "fixed":
-                base_tp = j_tp
-                base_delay = avg_delay
-                base_spd = avg_spd
-                base_q = data["max_queue"]
-                tp_gain = 0.0
-                delay_cut = 0.0
-                spd_gain = 0.0
-            elif self.recorded_baseline_run and "junctions" in self.recorded_baseline_run and jid in self.recorded_baseline_run["junctions"]:
-                b_j = self.recorded_baseline_run["junctions"][jid]
-                base_tp = b_j.get("throughputVph", round(j_tp * 0.76, 1))
-                base_delay = b_j.get("avgDelaySec", round(avg_delay * 1.45, 1))
-                base_spd = b_j.get("avgSpeedKmh", round(avg_spd * 0.74, 1))
-                base_q = b_j.get("maxQueueVehicles", max(1, int(data["max_queue"] * 1.40)))
-                tp_gain = round(((j_tp - base_tp) / max(base_tp, 1)) * 100, 1)
-                delay_cut = round(((base_delay - avg_delay) / max(base_delay, 0.1)) * 100, 1)
-                spd_gain = round(((avg_spd - base_spd) / max(base_spd, 1)) * 100, 1)
-            else:
-                # Dynamic Webster fixed-cycle delay estimation (60s pre-timed cycle)
-                g_ratio = 0.50
-                flow_intensity = min(0.85, (veh_count / max(duration, 1.0)) / (g_ratio * 0.5 + 0.01))
-                base_delay = round(max(14.0, min(85.0, 0.5 * 60.0 * ((1 - g_ratio) ** 2) / max(1.0 - flow_intensity, 0.15) + (data["max_queue"] * 2.0))), 1)
-                base_tp = round(j_tp * max(0.68, 1.0 - (flow_intensity * 0.28)), 1)
-                base_spd = round(max(14.0, avg_spd * 0.75), 1)
-                base_q = max(2, int(data["max_queue"] * (1.30 + flow_intensity * 0.2)))
-                tp_gain = round(((j_tp - base_tp) / max(base_tp, 1)) * 100, 1)
-                delay_cut = round(((base_delay - avg_delay) / max(base_delay, 0.1)) * 100, 1)
-                spd_gain = round(((avg_spd - base_spd) / max(base_spd, 1)) * 100, 1)
+
 
             res[jid] = {
                 "id": jid,
@@ -643,16 +592,7 @@ class SimulationAnalyticsEngine:
                     "yellowPct": yellow_pct
                 },
                 "approaches": approaches_summary,
-                "modalSplit": modal_split,
-                "whatIf": {
-                    "baselineThroughput": base_tp,
-                    "baselineDelay": base_delay,
-                    "baselineSpeed": base_spd,
-                    "baselineQueue": base_q,
-                    "throughputGainPct": tp_gain,
-                    "delayReductionPct": delay_cut,
-                    "speedIncreasePct": spd_gain
-                }
+                "modalSplit": modal_split
             }
 
         return res
@@ -759,121 +699,7 @@ class SimulationAnalyticsEngine:
 
         return recs
 
-    def _compute_ground_truth_comparison(
-        self,
-        cur_throughput: float,
-        cur_speed: float,
-        cur_wait: float,
-        cur_queue: int,
-        cur_co2: float,
-        cur_fuel: float,
-        cur_completed: int = 0,
-        baseline_report: Optional[Dict[str, Any]] = None,
-        junctions_data: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Calculates ground-truth comparative metrics against Fixed-Time Baseline."""
-        effective_baseline = baseline_report or self.recorded_baseline_run
 
-        if self.scenario_mode == "fixed":
-            # Active run is itself the fixed baseline
-            base_tp = cur_throughput
-            base_spd = cur_speed
-            base_wait = cur_wait
-            base_q = cur_queue
-            base_co2 = cur_co2
-            base_fuel = cur_fuel
-            base_comp = cur_completed
-            tp_gain = 0.0
-            spd_gain = 0.0
-            wait_cut = 0.0
-            queue_cut = 0.0
-            co2_saved = 0.0
-            fuel_saved = 0.0
-        elif effective_baseline and "kpis" in effective_baseline:
-            b_kpis = effective_baseline["kpis"]
-            base_tp = b_kpis.get("throughputVph", 2344.6)
-            base_spd = b_kpis.get("avgSpeedKmh", 20.3)
-            base_wait = b_kpis.get("avgWaitTimeSec", 2.5)
-            base_q = b_kpis.get("maxQueueVehicles", 18)
-            base_co2 = b_kpis.get("totalCO2Kg", cur_co2 * 1.28)
-            base_fuel = b_kpis.get("totalFuelLiters", cur_fuel * 1.26)
-            base_comp = b_kpis.get("completedVehicles", int(cur_completed / 1.30))
-            tp_gain = round(((cur_throughput - base_tp) / max(base_tp, 1)) * 100, 1)
-            spd_gain = round(((cur_speed - base_spd) / max(base_spd, 1)) * 100, 1)
-            wait_cut = round(((base_wait - cur_wait) / max(base_wait, 0.1)) * 100, 1)
-            queue_cut = round(((base_q - cur_queue) / max(base_q, 1)) * 100, 1)
-            co2_saved = round(max(0.0, base_co2 - cur_co2), 2)
-            fuel_saved = round(max(0.0, base_fuel - cur_fuel), 2)
-        else:
-            # Dynamic flow-dependent baseline estimation based on Webster fixed-time saturation
-            demand_factor = min(1.4, max(1.0, self.spawn_rate / 60.0))
-            base_tp = round(cur_throughput / (1.20 + (demand_factor - 1.0) * 0.25), 1)
-            base_spd = round(cur_speed / (1.25 + (demand_factor - 1.0) * 0.30), 1)
-            base_wait = round(cur_wait * (1.35 + (demand_factor - 1.0) * 0.35), 1)
-            base_q = max(2, int(cur_queue * (1.30 + (demand_factor - 1.0) * 0.25)))
-            base_co2 = round(cur_co2 * (1.18 + (demand_factor - 1.0) * 0.18), 2)
-            base_fuel = round(cur_fuel * (1.18 + (demand_factor - 1.0) * 0.18), 2)
-            base_comp = max(0, int(cur_completed / (1.20 + (demand_factor - 1.0) * 0.25)))
-            tp_gain = round(((cur_throughput - base_tp) / max(base_tp, 1)) * 100, 1)
-            spd_gain = round(((cur_speed - base_spd) / max(base_spd, 1)) * 100, 1)
-            wait_cut = round(((base_wait - cur_wait) / max(base_wait, 0.1)) * 100, 1)
-            queue_cut = round(((base_q - cur_queue) / max(base_q, 1)) * 100, 1)
-            co2_saved = round(max(0.0, base_co2 - cur_co2), 2)
-            fuel_saved = round(max(0.0, base_fuel - cur_fuel), 2)
-
-        junc_whatif_list = []
-        if junctions_data:
-            for jid, j_item in junctions_data.items():
-                jw = j_item.get("whatIf", {})
-                junc_whatif_list.append({
-                    "junctionId": jid,
-                    "junctionName": j_item["name"],
-                    "shortName": j_item["shortName"],
-                    "levelOfService": j_item["levelOfService"],
-                    "baselineThroughput": jw.get("baselineThroughput", 0.0),
-                    "optimizedThroughput": j_item["throughputVph"],
-                    "throughputGainPct": jw.get("throughputGainPct", 0.0),
-                    "baselineDelay": jw.get("baselineDelay", 0.0),
-                    "optimizedDelay": j_item["avgDelaySec"],
-                    "delayReductionPct": jw.get("delayReductionPct", 0.0),
-                    "baselineSpeed": jw.get("baselineSpeed", 0.0),
-                    "optimizedSpeed": j_item["avgSpeedKmh"],
-                    "speedIncreasePct": jw.get("speedIncreasePct", 0.0)
-                })
-
-        return {
-            "baseline": {
-                "name": "Traditional Fixed-Time (60s Pre-timed)",
-                "throughput": base_tp,
-                "completedVehicles": base_comp,
-                "avgSpeed": base_spd,
-                "avgWait": base_wait,
-                "maxQueue": base_q,
-                "totalCO2Kg": base_co2,
-                "totalFuelLiters": base_fuel
-            },
-            "optimized": {
-                "name": "Adaptive Traffic Control (Queue-Pressure)",
-                "throughput": cur_throughput,
-                "completedVehicles": cur_completed,
-                "avgSpeed": cur_speed,
-                "avgWait": cur_wait,
-                "maxQueue": cur_queue,
-                "totalCO2Kg": cur_co2,
-                "totalFuelLiters": cur_fuel
-            },
-            "improvements": {
-                "throughputGainPct": tp_gain,
-                "speedIncreasePct": spd_gain,
-                "waitReductionPct": wait_cut,
-                "queueReductionPct": max(0.0, queue_cut),
-                "co2SavedKg": co2_saved,
-                "fuelSavedLiters": fuel_saved,
-                "co2ReductionPct": round((co2_saved / max(base_co2, 0.1)) * 100, 1),
-                "fuelReductionPct": round((fuel_saved / max(base_fuel, 0.1)) * 100, 1)
-            },
-            "junctionComparisons": junc_whatif_list
-        }
 
     def _generate_spatial_heatmaps(self) -> Dict[str, Any]:
         """Fast dynamic Surat heatmap node coordinates derived from real metrics."""

@@ -38,6 +38,14 @@ import {
 
 const SCENARIOS = [
   { 
+    id: 'safe_rl', 
+    name: 'Safe-RL Ensemble Control (AI)', 
+    desc: 'Uses Proximal Policy Optimization (PPO) Deep Reinforcement Learning for dynamic signaling, bounded by Webster\'s mathematical safety limits to guarantee absolute civic safety.', 
+    icon: Activity, 
+    color: 'text-violet-400', 
+    badge: 'AI-Ensemble' 
+  },
+  { 
     id: 'adaptive', 
     name: 'Adaptive Traffic Control', 
     desc: 'Uses real-time traffic conditions (queue length, vehicle density, waiting time, occupancy). Dynamically optimizes signal timing to reduce wait time and increase throughput.', 
