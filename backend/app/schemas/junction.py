@@ -8,6 +8,8 @@ class JunctionBase(BaseModel):
     num_lanes: int = Field(default=4, ge=1, le=12, examples=[4])
     has_brts: bool = Field(default=False, examples=[True])
     status: str = Field(default="active", max_length=20, examples=["active"])
+    cameras: list = Field(default_factory=list)
+    optimization_mode: str = Field(default="DRL", max_length=20)
 
 class JunctionCreate(JunctionBase):
     id: str = Field(..., max_length=50, examples=["J-001"])

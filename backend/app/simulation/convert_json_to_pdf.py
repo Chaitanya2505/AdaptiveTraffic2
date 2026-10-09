@@ -159,6 +159,15 @@ def generate_pdf_from_json(json_path: str, output_pdf_path: str):
         textColor=colors.HexColor('#0f172a')
     )
 
+    header_style = ParagraphStyle(
+        'HeaderCell',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor('#ffffff')
+    )
+
     kpi_val_style = ParagraphStyle(
         'KPIValue',
         parent=styles['Normal'],
@@ -218,53 +227,35 @@ def generate_pdf_from_json(json_path: str, output_pdf_path: str):
     elements.append(meta_box)
     elements.append(Spacer(1, 6))
 
-    # 2. Executive KPI Cards (4 Top KPIs)
+    # 2. Executive KPI Cards (6 Top KPIs Matching Dashboard)
     kpis = data.get('kpis', {})
-    kpi_cards = [
-        [
-            Table([[Paragraph(f"{kpis.get('throughputVph', 0):.1f} <font size=7>vph</font>", kpi_val_style)], [Paragraph("THROUGHPUT CAPACITY", kpi_lbl_style)]], colWidths=[130]),
-            Table([[Paragraph(f"{kpis.get('avgSpeedKmh', 0):.1f} <font size=7>km/h</font>", kpi_val_style)], [Paragraph("CORRIDOR SPEED", kpi_lbl_style)]], colWidths=[130]),
-            Table([[Paragraph(f"{kpis.get('avgWaitTimeSec', 0):.1f} <font size=7>sec</font>", kpi_val_style)], [Paragraph("AVERAGE DELAY", kpi_lbl_style)]], colWidths=[130]),
-            Table([[Paragraph(f"{kpis.get('completedVehicles', 0)} <font size=7>trips</font>", kpi_val_style)], [Paragraph("COMPLETED TRIPS", kpi_lbl_style)]], colWidths=[130]),
-        ]
+    kpi_cards_row1 = [
+        Table([[Paragraph(f"{kpis.get('throughputVph', 0):.1f} <font size=7>vph</font>", kpi_val_style)], [Paragraph("THROUGHPUT CAPACITY", kpi_lbl_style)]], colWidths=[175]),
+        Table([[Paragraph(f"{kpis.get('avgSpeedKmh', 0):.1f} <font size=7>km/h</font>", kpi_val_style)], [Paragraph("CORRIDOR SPEED", kpi_lbl_style)]], colWidths=[175]),
+        Table([[Paragraph(f"{kpis.get('avgWaitTimeSec', 0):.1f} <font size=7>sec</font>", kpi_val_style)], [Paragraph("AVERAGE DELAY", kpi_lbl_style)]], colWidths=[175]),
     ]
-    t_kpis = Table(kpi_cards, colWidths=[135, 135, 135, 135])
+    kpi_cards_row2 = [
+        Table([[Paragraph(f"{kpis.get('maxQueueVehicles', 0)} <font size=7>veh</font>", kpi_val_style)], [Paragraph("PEAK QUEUE", kpi_lbl_style)]], colWidths=[175]),
+        Table([[Paragraph(f"{kpis.get('totalCO2Kg', 0):.1f} <font size=7>kg</font>", kpi_val_style)], [Paragraph("CO2 GENERATED", kpi_lbl_style)]], colWidths=[175]),
+        Table([[Paragraph(f"{kpis.get('fuelSavedLiters', 0):.1f} <font size=7>Liters</font>", kpi_val_style)], [Paragraph("FUEL SAVED", kpi_lbl_style)]], colWidths=[175]),
+    ]
+
+    t_kpis = Table([kpi_cards_row1, kpi_cards_row2], colWidths=[180, 180, 180], rowHeights=[45, 45])
     t_kpis.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#ffffff')),
-        ('BOX', (0, 0), (0, 0), 1, colors.HexColor('#e2e8f0')),
-        ('BOX', (1, 0), (1, 0), 1, colors.HexColor('#e2e8f0')),
-        ('BOX', (2, 0), (2, 0), 1, colors.HexColor('#e2e8f0')),
-        ('BOX', (3, 0), (3, 0), 1, colors.HexColor('#e2e8f0')),
-        ('PADDING', (0, 0), (-1, -1), 3),
+        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
+        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
+        ('PADDING', (0, 0), (-1, -1), 4),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
     ]))
     elements.append(t_kpis)
-    elements.append(Spacer(1, 6))
-
-    # 3. Environmental Sustainability Impact Box
-    whatif = data.get('whatIfComparison', {})
-    imp = whatif.get('improvements', {})
-    co2_saved_str = f"{abs(imp.get('co2SavedKg', 0)):.2f} kg ({abs(imp.get('co2ReductionPct', 0)):.1f}% reduction)"
-    fuel_saved_str = f"{abs(imp.get('fuelSavedLiters', 0)):.2f} L ({abs(imp.get('fuelReductionPct', 0)):.1f}% reduction)"
-
-    env_text = (
-        f"<b>🌱 Environmental & Sustainability Impact:</b> "
-        f"Total CO2 Generated: <b>{kpis.get('totalCO2Kg', 0)} kg</b> (Saved: <b><font color='#059669'>{co2_saved_str}</font></b>)  |  "
-        f"Fuel Consumed: <b>{kpis.get('totalFuelLiters', 0)} L</b> (Saved: <b><font color='#059669'>{fuel_saved_str}</font></b>)"
-    )
-    env_box = Table([[Paragraph(env_text, body_style)]], colWidths=[540])
-    env_box.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#ecfdf5')),
-        ('PADDING', (0, 0), (-1, -1), 5),
-        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#a7f3d0')),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-    ]))
-    elements.append(env_box)
-    elements.append(Spacer(1, 6))
+    elements.append(Spacer(1, 10))
 
     # 4. Ground-Truth What-If Comparison Table
+    whatif = data.get('whatIfComparison', {})
     baseline = whatif.get('baseline', {})
     opt = whatif.get('optimized', {})
+    imp = whatif.get('improvements', {})
 
     elements.append(Paragraph("1. Ground-Truth Scenario Comparison (Adaptive Control vs Fixed-Time Baseline)", h2_style))
 
@@ -272,26 +263,30 @@ def generate_pdf_from_json(json_path: str, output_pdf_path: str):
     tp_pct = imp.get('throughputGainPct', 0)
     spd_pct = imp.get('speedIncreasePct', 0)
     wait_pct = imp.get('waitReductionPct', 0)
+    queue_pct = imp.get('queueReductionPct', 0)
+    co2_pct = imp.get('co2ReductionPct', 0)
 
     tp_str = f"+{tp_pct:.1f}%" if tp_pct >= 0 else f"{tp_pct:.1f}%"
     spd_str = f"+{spd_pct:.1f}%" if spd_pct >= 0 else f"{spd_pct:.1f}%"
     wait_str = f"-{abs(wait_pct):.1f}%" if wait_pct >= 0 else f"+{abs(wait_pct):.1f}%"
+    queue_str = f"-{abs(queue_pct):.1f}%" if queue_pct >= 0 else f"+{abs(queue_pct):.1f}%"
+    co2_str = f"-{abs(co2_pct):.1f}%" if co2_pct >= 0 else f"+{abs(co2_pct):.1f}%"
 
     comp_data = [
         [
-            Paragraph("<b>Performance Metric</b>", bold_cell_style),
-            Paragraph("<b>Fixed-Time Baseline</b>", bold_cell_style),
-            Paragraph("<b>Adaptive Traffic Control</b>", bold_cell_style),
-            Paragraph("<b>Empirical Benefit</b>", bold_cell_style)
+            Paragraph("<b>Performance Metric</b>", header_style),
+            Paragraph("<b>Fixed-Time Baseline</b>", header_style),
+            Paragraph("<b>Adaptive Control</b>", header_style),
+            Paragraph("<b>Net Benefit</b>", header_style)
         ],
         [
-            Paragraph("Corridor Throughput Capacity", body_style),
-            Paragraph(f"{baseline.get('throughput', 0):.1f} veh/hr", body_style),
-            Paragraph(f"{opt.get('throughput', 0):.1f} veh/hr", bold_cell_style),
+            Paragraph("Throughput Capacity", body_style),
+            Paragraph(f"{baseline.get('throughput', 0):.1f} vph", body_style),
+            Paragraph(f"{opt.get('throughput', 0):.1f} vph", bold_cell_style),
             Paragraph(f"<font color='#059669'><b>{tp_str}</b></font>", bold_cell_style)
         ],
         [
-            Paragraph("Average Corridor Travel Speed", body_style),
+            Paragraph("Average Corridor Speed", body_style),
             Paragraph(f"{baseline.get('avgSpeed', 0):.1f} km/h", body_style),
             Paragraph(f"{opt.get('avgSpeed', 0):.1f} km/h", bold_cell_style),
             Paragraph(f"<font color='#059669'><b>{spd_str}</b></font>", bold_cell_style)
@@ -303,15 +298,18 @@ def generate_pdf_from_json(json_path: str, output_pdf_path: str):
             Paragraph(f"<font color='#059669'><b>{wait_str}</b></font>", bold_cell_style)
         ],
         [
-            Paragraph("Completed Corridor Trips (5 Min)", body_style),
-            Paragraph(f"{baseline.get('completedVehicles', 0)} trips", body_style),
-            Paragraph(f"{opt.get('completedVehicles', 0)} trips", bold_cell_style),
-            Paragraph(f"<font color='#059669'><b>{tp_str}</b></font>", bold_cell_style)
+            Paragraph("Peak Corridor Queue", body_style),
+            Paragraph(f"{baseline.get('maxQueue', 0)} veh", body_style),
+            Paragraph(f"{opt.get('maxQueue', 0)} veh", bold_cell_style),
+            Paragraph(f"<font color='#059669'><b>{queue_str}</b></font>", bold_cell_style)
+        ],
+        [
+            Paragraph("Total CO2 Emissions", body_style),
+            Paragraph(f"{baseline.get('totalCO2Kg', 0):.1f} kg", body_style),
+            Paragraph(f"{opt.get('totalCO2Kg', 0):.1f} kg", bold_cell_style),
+            Paragraph(f"<font color='#059669'><b>{co2_str}</b></font>", bold_cell_style)
         ]
     ]
-
-    for i in range(4):
-        comp_data[0][i].style.textColor = colors.HexColor('#ffffff')
 
     t_comp = Table(comp_data, colWidths=[175, 125, 130, 110])
     t_comp.setStyle(TableStyle([
@@ -343,13 +341,13 @@ def generate_pdf_from_json(json_path: str, output_pdf_path: str):
     if junctions:
         j_data = [
             [
-                Paragraph("<b>Junction Corridor Node</b>", bold_cell_style),
-                Paragraph("<b>Throughput</b>", bold_cell_style),
-                Paragraph("<b>Avg Delay</b>", bold_cell_style),
-                Paragraph("<b>HCM LOS</b>", bold_cell_style),
-                Paragraph("<b>Avg Speed</b>", bold_cell_style),
-                Paragraph("<b>Max Queue</b>", bold_cell_style),
-                Paragraph("<b>Phase Split (EW/NS)</b>", bold_cell_style)
+                Paragraph("<b>Junction Corridor Node</b>", header_style),
+                Paragraph("<b>Throughput</b>", header_style),
+                Paragraph("<b>Avg Delay</b>", header_style),
+                Paragraph("<b>HCM LOS</b>", header_style),
+                Paragraph("<b>Avg Speed</b>", header_style),
+                Paragraph("<b>Max Queue</b>", header_style),
+                Paragraph("<b>Phase Split (EW/NS)</b>", header_style)
             ]
         ]
         for jid, j_item in junctions.items():
@@ -364,9 +362,6 @@ def generate_pdf_from_json(json_path: str, output_pdf_path: str):
                 Paragraph(f"{j_item.get('maxQueueVehicles', 0)} veh", body_style),
                 Paragraph(f"{ps.get('ewGreenPct', 50):.0f}% / {ps.get('nsGreenPct', 50):.0f}%", body_style)
             ])
-
-        for i in range(7):
-            j_data[0][i].style.textColor = colors.HexColor('#ffffff')
 
         t_junc = Table(j_data, colWidths=[125, 65, 55, 55, 60, 60, 120])
         t_junc.setStyle(TableStyle([
@@ -384,13 +379,13 @@ def generate_pdf_from_json(json_path: str, output_pdf_path: str):
     bottlenecks = data.get('bottlenecks', [])
     bot_data = [
         [
-            Paragraph("<b>Rank</b>", bold_cell_style),
-            Paragraph("<b>Junction Location</b>", bold_cell_style),
-            Paragraph("<b>Score</b>", bold_cell_style),
-            Paragraph("<b>Speed</b>", bold_cell_style),
-            Paragraph("<b>Delay</b>", bold_cell_style),
-            Paragraph("<b>Severity</b>", bold_cell_style),
-            Paragraph("<b>Quantitative Root Cause & Sensor Telemetry</b>", bold_cell_style)
+            Paragraph("<b>Rank</b>", header_style),
+            Paragraph("<b>Junction Location</b>", header_style),
+            Paragraph("<b>Score</b>", header_style),
+            Paragraph("<b>Speed</b>", header_style),
+            Paragraph("<b>Delay</b>", header_style),
+            Paragraph("<b>Severity</b>", header_style),
+            Paragraph("<b>Quantitative Root Cause & Sensor Telemetry</b>", header_style)
         ]
     ]
     for b in bottlenecks:
@@ -404,9 +399,6 @@ def generate_pdf_from_json(json_path: str, output_pdf_path: str):
             Paragraph(f"<font color='{sev_color}'><b>{b.get('severity')}</b></font>", bold_cell_style),
             Paragraph(f"{b.get('primaryFactor', '')}", body_style)
         ])
-
-    for i in range(7):
-        bot_data[0][i].style.textColor = colors.HexColor('#ffffff')
 
     t_bot = Table(bot_data, colWidths=[35, 125, 45, 50, 45, 50, 190])
     t_bot.setStyle(TableStyle([
@@ -426,11 +418,11 @@ def generate_pdf_from_json(json_path: str, output_pdf_path: str):
 
     rec_data = [
         [
-            Paragraph("<b>Code</b>", bold_cell_style),
-            Paragraph("<b>Category</b>", bold_cell_style),
-            Paragraph("<b>Action Plan & Engineering Specification</b>", bold_cell_style),
-            Paragraph("<b>Target Location</b>", bold_cell_style),
-            Paragraph("<b>Impact</b>", bold_cell_style)
+            Paragraph("<b>Code</b>", header_style),
+            Paragraph("<b>Category</b>", header_style),
+            Paragraph("<b>Action Plan & Engineering Specification</b>", header_style),
+            Paragraph("<b>Target Location</b>", header_style),
+            Paragraph("<b>Impact</b>", header_style)
         ]
     ]
     for r in recs:
@@ -441,9 +433,6 @@ def generate_pdf_from_json(json_path: str, output_pdf_path: str):
             Paragraph(f"{r.get('targetLocation', '')}", body_style),
             Paragraph(f"<b>{r.get('impact')}</b>", bold_cell_style)
         ])
-
-    for i in range(5):
-        rec_data[0][i].style.textColor = colors.HexColor('#ffffff')
 
     t_recs = Table(rec_data, colWidths=[45, 80, 250, 115, 50])
     t_recs.setStyle(TableStyle([

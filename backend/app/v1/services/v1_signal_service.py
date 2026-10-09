@@ -56,7 +56,7 @@ LANE_TO_PHASE = {v: k for k, v in PHASE_TO_LANE.items()}
 PHASE_SEQUENCE = ["LANE_1_NORTH", "LANE_2_SOUTH", "LANE_3_EAST", "LANE_4_WEST"]
 
 
-class SignalService:
+class V1SignalService:
     """
     Queue-Responsive Modified Webster Controller (QR-MWC).
 
@@ -85,7 +85,8 @@ class SignalService:
         db: AsyncSession,
         junction_id: str,
         mode: str = "VISION",
-        lane_counts_override: Optional[Dict[str, Any]] = None
+        lane_counts_override: Optional[Dict[str, Any]] = None,
+        dry_run: bool = False
     ) -> Signal:
         """
         Executes QR-MWC Optimization, commits active signal record to database,
@@ -96,7 +97,7 @@ class SignalService:
         if not junction:
             raise ValueError(f"Junction {junction_id} not found")
 
-        history = SignalService._get_or_init_history(junction_id)
+        history = V1SignalService._get_or_init_history(junction_id)
         now_epoch = time.time()
 
         # Step 1: Ingest lane counts or query recent database detections as fallback
@@ -128,7 +129,7 @@ class SignalService:
                     db_counts[lid]["cars"] += 1
             lane_counts_override = db_counts
 
-        approach_data = SignalService._extract_approach_metrics(lane_counts_override)
+        approach_data = V1SignalService._extract_approach_metrics(lane_counts_override)
 
         # Apply EMA smoothing on PCE demand
         smoothed_pce = {}
@@ -197,7 +198,7 @@ class SignalService:
             prev_queues[lane_id] = curr_q
 
         # Step 5: Bounded waterfilling green split allocation (sum(G_i) + L == C)
-        phase_durations = SignalService._allocate_bounded_green(
+        phase_durations = V1SignalService._allocate_bounded_green(
             flow_ratios=flow_ratios,
             urgency_weights=urgency_weights,
             total_green_budget=int(effective_green_budget),
@@ -223,7 +224,7 @@ class SignalService:
         last_signal = last_signal_result.scalar_one_or_none()
 
         if mode.upper() == "DRL":
-            from app.services.drl_service import drl_service
+            from app.v1.services.v1_drl_service import drl_service
             
             metrics = {
                 "NORTH": {"queue": approach_data.get("L1", {}).get("vehicles", 0), "wait": max(0.0, now_epoch - history["last_green_time"].get("LANE_1_NORTH", now_epoch - 60.0))},
@@ -270,9 +271,10 @@ class SignalService:
             duration=active_duration,
             mode=mode.upper()
         )
-        db.add(optimized_signal)
-        await db.commit()
-        await db.refresh(optimized_signal)
+        if not dry_run:
+            db.add(optimized_signal)
+            await db.commit()
+            await db.refresh(optimized_signal)
 
         # Attach telemetry metrics for downstream clients
         optimized_signal.phase_plan = phase_durations

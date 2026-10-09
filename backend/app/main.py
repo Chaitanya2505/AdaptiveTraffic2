@@ -19,7 +19,7 @@ from app.routers import (
     test_camera_router
 )
 from app.routers.analytics import router as analytics_router
-
+from app.v1.api import api_router as v1_api_router
 async def seed_data():
     async with AsyncSessionLocal() as db:
         # Seed initial user accounts if none exist
@@ -62,9 +62,13 @@ async def seed_data():
             {"id": "J-019", "name": "Kadodara Highway Cross", "latitude": 21.171400, "longitude": 72.910400, "num_lanes": 6, "has_brts": False, "status": "active"},
             {"id": "J-020", "name": "Dumas Beach Cross Road", "latitude": 21.095400, "longitude": 72.725400, "num_lanes": 4, "has_brts": False, "status": "active"},
         ]
+
+        from sqlalchemy.orm import noload
+        existing = await db.execute(select(Junction).options(noload('*')))
+        existing_junctions = {j.id: j for j in existing.scalars().all()}
+
         for jdata in surat_junctions_data:
-            existing = await db.execute(select(Junction).where(Junction.id == jdata["id"]))
-            j_obj = existing.scalar_one_or_none()
+            j_obj = existing_junctions.get(jdata["id"])
             if j_obj:
                 j_obj.name = jdata["name"]
                 j_obj.latitude = jdata["latitude"]
@@ -122,6 +126,9 @@ app.include_router(simulation_router)
 app.include_router(analytics_router)
 app.include_router(brts_router)
 app.include_router(test_camera_router)
+
+# Mount new V1 API
+app.include_router(v1_api_router, prefix="/api/v1")
 
 @app.get("/")
 async def root():

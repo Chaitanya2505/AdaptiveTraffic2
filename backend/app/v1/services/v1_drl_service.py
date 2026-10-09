@@ -27,7 +27,7 @@ class DRLService:
         
         # Load pre-trained weights
         model_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))),
             "ml_models", "RL_adaptiveTraffic", "dqn_tls.pt"
         )
         

@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String, Integer, Float, Boolean
+from sqlalchemy import String, Integer, Float, Boolean, JSON
 from typing import List
 from app.database import Base
 
@@ -13,6 +13,8 @@ class Junction(Base):
     num_lanes: Mapped[int] = mapped_column(Integer, default=4)
     has_brts: Mapped[bool] = mapped_column(Boolean, default=False)
     status: Mapped[str] = mapped_column(String(20), default="active")  # active, inactive, maintenance
+    cameras: Mapped[list] = mapped_column(JSON, default=list)
+    optimization_mode: Mapped[str] = mapped_column(String(20), default="DRL")
 
     # Relationships
     detections: Mapped[List["Detection"]] = relationship(
