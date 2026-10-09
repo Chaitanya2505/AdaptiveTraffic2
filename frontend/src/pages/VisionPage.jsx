@@ -100,6 +100,17 @@ export default function VisionPage() {
     setVisionAnalysis({ isAnalyzed: false });
   };
 
+  const handleLoadLocalVideos = () => {
+    setLaneFeeds({
+      0: { file: null, preview: '/videos/cam1.mp4', raw: '/videos/cam1.mp4', type: 'video', isCustomUpload: true },
+      1: { file: null, preview: '/videos/cam2.mp4', raw: '/videos/cam2.mp4', type: 'video', isCustomUpload: true },
+      2: { file: null, preview: '/videos/cam3.mp4', raw: '/videos/cam3.mp4', type: 'video', isCustomUpload: true },
+      3: { file: null, preview: '/videos/cam4.mp4', raw: '/videos/cam4.mp4', type: 'video', isCustomUpload: true }
+    });
+    setVisionSignalState((prev) => ({ ...prev, isAutoCycleActive: false }));
+    setVisionAnalysis({ isAnalyzed: false });
+  };
+
   const handleClearAll = () => {
     setLaneFeeds({
       0: { file: null, preview: null, raw: null, type: null, isCustomUpload: false },
@@ -123,8 +134,8 @@ export default function VisionPage() {
     setLaneFeeds(currentFeeds);
     setVisionAnalysis({ isAnalyzed: true });
 
-    // Try backend API detection with UVH-26 model for custom files
-    const hasCustomFiles = Object.values(currentFeeds).some((f) => f.file !== null);
+    // Try backend API detection with UVH-26 model for custom files or local videos
+    const hasCustomFiles = Object.values(currentFeeds).some((f) => f.file !== null || f.isCustomUpload);
     if (hasCustomFiles) {
       try {
         console.log("[VisionPage] Starting UVH-26 vehicle detection...");
@@ -146,7 +157,7 @@ export default function VisionPage() {
         };
 
         for (const [idx, feed] of Object.entries(currentFeeds)) {
-          if (feed.file) {
+          if (feed.file || feed.isCustomUpload) {
             let finalFile = feed.file;
             
             // If it's a video, grab the current frame from the DOM element
@@ -158,9 +169,11 @@ export default function VisionPage() {
               }
             }
             
-            console.log(`[VisionPage] Adding Lane ${parseInt(idx) + 1} file: ${finalFile.name} (${(finalFile.size / 1024).toFixed(2)}KB)`);
-            formData.append('files', finalFile);
-            fileCount++;
+            if (finalFile) {
+              console.log(`[VisionPage] Adding Lane ${parseInt(idx) + 1} file: ${finalFile.name} (${(finalFile.size / 1024).toFixed(2)}KB)`);
+              formData.append('files', finalFile);
+              fileCount++;
+            }
           }
         }
         formData.append('junction_id', selectedJunction);
@@ -432,6 +445,16 @@ export default function VisionPage() {
             <span>Reset 4-Lane Feeds</span>
           </Button>
 
+          <Button
+            variant="outline"
+            onClick={handleLoadLocalVideos}
+            className="py-2 text-slate-300 hover:text-white border-slate-700 bg-blue-900/40"
+            title="Load cam1.mp4 to cam4.mp4 from public/videos/ folder"
+          >
+            <Upload className="h-4 w-4 text-blue-400" />
+            <span>Load Local Directory Videos</span>
+          </Button>
+
           {hasAnyFeed && (
             <Button
               variant="outline"
@@ -478,21 +501,21 @@ export default function VisionPage() {
                         </Badge>
                       ) : masterMode === 'ALL_GREEN_HOLD' ? (
                         <Badge variant="success" className="text-[10px] animate-pulse">
-                          🟢 ALL GREEN ({remainingSec}s)
+                          ALL GREEN ({remainingSec}s)
                         </Badge>
                       ) : masterMode === 'ALL_RED_HOLD' ? (
                         <Badge variant="danger" className="text-[10px] animate-pulse">
-                          🔴 ALL RED ({remainingSec}s)
+                          ALL RED ({remainingSec}s)
                         </Badge>
                       ) : isCurrentActiveCycle ? (
                         <Badge variant={lightColor === 'GREEN' ? 'success' : lightColor === 'YELLOW' ? 'warning' : 'danger'} className="text-[10px] animate-pulse">
-                          {lightColor === 'GREEN' ? `🟢 ACTIVE GREEN (${remainingSec}s)` :
-                           lightColor === 'YELLOW' ? `🟡 EVALUATING NEXT PHASE (${remainingSec}s)` :
-                           `🔴 RED LIGHT (${remainingSec}s)`}
+                          {lightColor === 'GREEN' ? `ACTIVE GREEN (${remainingSec}s)` :
+                           lightColor === 'YELLOW' ? `EVALUATING NEXT PHASE (${remainingSec}s)` :
+                           `RED LIGHT (${remainingSec}s)`}
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="text-[10px]">
-                          🔴 RED LIGHT
+                          RED LIGHT
                         </Badge>
                       )
                     ) : (
@@ -610,14 +633,14 @@ export default function VisionPage() {
             <thead>
               <tr className="border-b border-slate-800 text-slate-400 uppercase tracking-wider font-semibold bg-slate-900/60">
                 <th className="py-3.5 px-4">Approach Lane</th>
-                <th className="py-3.5 px-4">🚗 Cars</th>
-                <th className="py-3.5 px-4">🏍 2-Wheelers</th>
-                <th className="py-3.5 px-4">🛺 Autos</th>
-                <th className="py-3.5 px-4">🚌 Buses</th>
-                <th className="py-3.5 px-4">🚚 Trucks</th>
+                <th className="py-3.5 px-4">Cars</th>
+                <th className="py-3.5 px-4">2-Wheelers</th>
+                <th className="py-3.5 px-4">Autos</th>
+                <th className="py-3.5 px-4">Buses</th>
+                <th className="py-3.5 px-4">Trucks</th>
                 <th className="py-3.5 px-4">🧮 Total Count (PCE)</th>
                 <th className="py-3.5 px-4">📏 Accurate Queue Length</th>
-                <th className="py-3.5 px-4 text-right">🟢 Signal Allocation</th>
+                <th className="py-3.5 px-4 text-right">Signal Allocation</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-850/60">
@@ -686,7 +709,7 @@ export default function VisionPage() {
                       <td className="py-4 px-4 text-right">
                         {masterMode === 'SCANNING_TRAFFIC' ? (
                           <span className="inline-flex items-center gap-1 text-xs font-bold text-cyan-400 bg-cyan-950/60 border border-cyan-500/50 px-2.5 py-1 rounded-lg animate-pulse">
-                            🔍 SCANNING: {remainingSec}s
+                            SCANNING: {remainingSec}s
                           </span>
                         ) : isCurrentActive ? (
                           <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg ${
@@ -696,13 +719,13 @@ export default function VisionPage() {
                               ? 'text-amber-400 bg-amber-950/60 border border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.3)] animate-pulse'
                               : 'text-red-400 bg-red-950/60 border border-red-500/50'
                           }`}>
-                            {lightColor === 'GREEN' ? `🟢 LIVE GREEN: ${remainingSec}s` :
-                             lightColor === 'YELLOW' ? `🟡 EVALUATING NEXT PHASE: ${remainingSec}s` :
-                             `🔴 STOP: 0s`}
+                            {lightColor === 'GREEN' ? `LIVE GREEN: ${remainingSec}s` :
+                             lightColor === 'YELLOW' ? `EVALUATING NEXT PHASE: ${remainingSec}s` :
+                             `STOP: 0s`}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-lg">
-                            🟢 {recommendedSeconds}s Cycle Allocation
+                            {recommendedSeconds}s Cycle Allocation
                           </span>
                         )}
                       </td>

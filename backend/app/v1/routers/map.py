@@ -32,7 +32,7 @@ async def get_all_nodes(db: AsyncSession = Depends(get_db)):
         nodes.append({
             "id": node.id,
             "name": node.name,
-            "type": getattr(node, "node_type", "junction"),
+            "type": "brts" if getattr(node, "has_brts", False) else "junction",
             "lat": node.latitude,
             "lng": node.longitude,
             "cameras": node.cameras,
@@ -51,12 +51,12 @@ async def create_node(node: NodeCreate, db: AsyncSession = Depends(get_db)):
     new_node = Junction(
         id=node.id,
         name=node.name,
-        node_type=node.type,
+        has_brts=(node.type == "brts"),
         latitude=node.lat,
         longitude=node.lng,
         cameras=[c.dict() for c in node.cameras],
         status="active"
     )
-    db.add(new_node)
+    await db.merge(new_node)
     await db.commit()
     return {"status": "ok", "message": f"{node.type} node created successfully!"}

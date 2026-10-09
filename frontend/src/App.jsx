@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { useDataStore } from './store/dataStore';
 import Layout from './components/layout/Layout';
-import Dashboard from './pages/Dashboard';
 import MonitorPage from './pages/MonitorPage';
 import JunctionNodesPage from './pages/JunctionNodesPage';
 import BrtsNodesPage from './pages/BrtsNodesPage';
@@ -15,9 +14,7 @@ import SignalsPage from './pages/SignalsPage';
 import ViolationsPage from './pages/ViolationsPage';
 import BRTSLaneGuardPage from './pages/BRTSLaneGuardPage';
 import AnalyticsPage from './pages/AnalyticsPage';
-import PredictionsPage from './pages/PredictionsPage';
 import SimulationPage from './pages/SimulationPage';
-import TestCameraPage from './pages/TestCameraPage';
 import LoginPage from './pages/LoginPage';
 
 const LANE_ORDER = ['LANE_1_NORTH', 'LANE_2_SOUTH', 'LANE_3_EAST', 'LANE_4_WEST'];
@@ -136,8 +133,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         
         {/* Protected Dashboard pages */}
-        <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/monitor" element={<ProtectedRoute><MonitorPage /></ProtectedRoute>} />
+        <Route path="/" element={<ProtectedRoute><MonitorPage /></ProtectedRoute>} />
         <Route path="/junction-nodes" element={<ProtectedRoute><JunctionNodesPage /></ProtectedRoute>} />
         <Route path="/brts-nodes" element={<ProtectedRoute><BrtsNodesPage /></ProtectedRoute>} />
         <Route path="/junctions/:id" element={<ProtectedRoute><JunctionDetailsPage /></ProtectedRoute>} />
@@ -149,9 +145,7 @@ export default function App() {
         <Route path="/violations" element={<ProtectedRoute><BRTSLaneGuardPage /></ProtectedRoute>} />
         <Route path="/brts" element={<ProtectedRoute><BRTSLaneGuardPage /></ProtectedRoute>} />
         <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
-        <Route path="/predictions" element={<ProtectedRoute><PredictionsPage /></ProtectedRoute>} />
         <Route path="/simulation" element={<ProtectedRoute><SimulationPage /></ProtectedRoute>} />
-        <Route path="/test" element={<ProtectedRoute><TestCameraPage /></ProtectedRoute>} />
         
         {/* Catch-all fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

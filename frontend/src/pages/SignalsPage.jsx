@@ -368,16 +368,9 @@ export default function SignalsPage() {
                 onClick={() => handleSetAllLanes('RED')}
                 className="w-full py-3 text-xs font-bold shadow-lg"
               >
-                🔴 FORCE ALL 4 LANES RED (Emergency Stop)
+                FORCE ALL 4 LANES RED (Emergency Stop)
               </Button>
 
-              <button
-                type="button"
-                onClick={() => handleSetAllLanes('GREEN')}
-                className="w-full py-3 px-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md"
-              >
-                🟢 FORCE ALL 4 LANES GREEN (Open Intersection)
-              </button>
             </div>
           </Card>
         </div>
@@ -454,7 +447,7 @@ export default function SignalsPage() {
 
                       {/* Current Light Badge */}
                       <Badge variant={isGreen ? 'success' : isYellow ? 'warning' : 'danger'}>
-                        {isScanning ? '🔍 SCANNING...' : isGreen ? `🟢 GREEN (${remainingSec}s)` : isYellow ? `🟡 ORANGE (${remainingSec}s)` : '🔴 RED'}
+                        {isScanning ? 'SCANNING...' : isGreen ? `GREEN (${remainingSec}s)` : isYellow ? `ORANGE (${remainingSec}s)` : 'RED'}
                       </Badge>
                     </div>
 
@@ -468,11 +461,11 @@ export default function SignalsPage() {
 
                       {/* Class breakdown icons */}
                       <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-slate-900 text-[10px] text-slate-400">
-                        <span>🚗 Cars: <strong className="text-slate-200">{displayData.cars}</strong></span>
-                        <span>🏍 2W: <strong className="text-slate-200">{displayData.bikes}</strong></span>
-                        <span>🛺 Autos: <strong className="text-slate-200">{displayData.autos}</strong></span>
-                        <span>🚌 Buses: <strong className="text-slate-200">{displayData.buses}</strong></span>
-                        <span>🚚 Heavy: <strong className="text-slate-200">{displayData.trucks}</strong></span>
+                        <span>Cars: <strong className="text-slate-200">{displayData.cars}</strong></span>
+                        <span>2W: <strong className="text-slate-200">{displayData.bikes}</strong></span>
+                        <span>Autos: <strong className="text-slate-200">{displayData.autos}</strong></span>
+                        <span>Buses: <strong className="text-slate-200">{displayData.buses}</strong></span>
+                        <span>Heavy: <strong className="text-slate-200">{displayData.trucks}</strong></span>
                       </div>
                     </div>
 
@@ -487,7 +480,7 @@ export default function SignalsPage() {
                             : 'bg-emerald-950/30 text-emerald-400 border-emerald-900 hover:bg-emerald-500/20'
                         }`}
                       >
-                        🟢 GREEN
+                        GREEN
                       </button>
 
                       <button
@@ -499,7 +492,7 @@ export default function SignalsPage() {
                             : 'bg-red-950/30 text-red-400 border-red-900 hover:bg-red-600/20'
                         }`}
                       >
-                        🔴 RED
+                        RED
                       </button>
                       
                       <button
@@ -507,7 +500,7 @@ export default function SignalsPage() {
                         onClick={(e) => { e.stopPropagation(); handleStartSignal(p.id); }}
                         className={`py-2 px-1 rounded-lg font-extrabold text-[10px] transition-all border flex items-center justify-center bg-blue-950/30 text-blue-400 border-blue-900 hover:bg-blue-600/20`}
                       >
-                        ▶️ START
+                        START
                       </button>
                     </div>
                   </div>

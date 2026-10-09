@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -172,8 +174,82 @@ export default function AnalyticsPage() {
   };
 
   const handleExport = (type) => {
-    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    window.open(`${apiBase}/simulation/export/${type}`, '_blank');
+    if (type === 'pdf') {
+      const doc = new jsPDF();
+      doc.setFontSize(20);
+      doc.text("Traffic Pulse - Executive Report", 14, 22);
+      
+      doc.setFontSize(11);
+      doc.setTextColor(100);
+      doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+      
+      doc.setFontSize(14);
+      doc.setTextColor(0);
+      doc.text("Key Performance Indicators (KPIs)", 14, 45);
+      
+      const kpisArray = [
+        ["Throughput", `${Math.round(analyticsData?.kpis?.throughputVph || 0)} vph`],
+        ["Average Speed", `${Math.round(analyticsData?.kpis?.avgSpeedKmh || 0)} km/h`],
+        ["Average Wait Time", `${Math.round(analyticsData?.kpis?.avgWaitTimeSec || 0)} s`],
+        ["Max Queue", `${analyticsData?.kpis?.maxQueueVehicles || 0} veh`],
+        ["CO2 Emissions", `${Math.round(analyticsData?.kpis?.totalCO2Kg || 0)} kg`],
+        ["Fuel Consumption", `${Math.round(analyticsData?.kpis?.totalFuelLiters || 0)} L`]
+      ];
+      
+      autoTable(doc, {
+        startY: 50,
+        head: [['Metric', 'Value']],
+        body: kpisArray,
+        theme: 'striped',
+        headStyles: { fillColor: [15, 37, 64] }
+      });
+      
+      const finalY = doc.lastAutoTable.finalY || 50;
+      doc.text("Simulation Timeline", 14, finalY + 15);
+      
+      const trends = analyticsData?.trends || [];
+      const trendsArray = trends.map(row => {
+        const throughputVph = (row.completedVehicles / Math.max(row.time || 1, 1)) * 3600;
+        return [
+          row.time,
+          throughputVph.toFixed(1),
+          (row.avgSpeed||0).toFixed(1),
+          (row.avgWaitTime||0).toFixed(1),
+          (row.maxQueue||0),
+          row.completedVehicles||0
+        ];
+      });
+      
+      autoTable(doc, {
+        startY: finalY + 20,
+        head: [['Time (s)', 'Throughput (vph)', 'Avg Speed (km/h)', 'Wait (s)', 'Queue (veh)', 'Completed']],
+        body: trendsArray,
+        theme: 'striped',
+        headStyles: { fillColor: [15, 37, 64] }
+      });
+      
+      doc.save('traffic_executive_report.pdf');
+    } else if (type === 'csv') {
+      let csvContent = "data:text/csv;charset=utf-8,";
+      csvContent += "Time,Throughput (vph),Avg Speed (km/h),Avg Wait Time (s),Max Queue (veh),Completed Vehicles\n";
+      
+      const trends = analyticsData?.trends || [];
+      trends.forEach(row => {
+        const throughputVph = (row.completedVehicles / Math.max(row.time || 1, 1)) * 3600;
+        csvContent += `${row.time},${throughputVph.toFixed(1)},${(row.avgSpeed||0).toFixed(1)},${(row.avgWaitTime||0).toFixed(1)},${(row.maxQueue||0)},${row.completedVehicles||0}\n`;
+      });
+      
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "traffic_analytics_report.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      window.open(`${apiBase}/api/v1/analytics/export/${type}`, '_blank');
+    }
   };
 
   const kpis = analyticsData?.kpis || {
@@ -261,7 +337,7 @@ export default function AnalyticsPage() {
               📊 Real-Time SUMO Simulation Analytics & What-If Engine
             </h2>
             <Badge variant={isLiveStreaming ? "success" : "info"}>
-              {isLiveStreaming ? "🟢 Live Telemetry Stream" : "Historical Report"}
+              {isLiveStreaming ? "Live Telemetry Stream" : "Historical Report"}
             </Badge>
           </div>
           <p className="text-xs text-slate-400 font-medium mt-0.5">
@@ -404,7 +480,7 @@ export default function AnalyticsPage() {
           { id: 'junctions', name: '🚦 4-Junction Deep-Dive', icon: Activity },
           { id: 'trends', name: '📈 Live Traffic Trends', icon: TrendingUp },
           { id: 'heatmaps', name: '🗺️ Dynamic Spatial Heatmaps', icon: MapIcon },
-          { id: 'bottlenecks', name: '⚠️ Dynamic Hotspots Ranking', icon: AlertTriangle },
+          { id: 'bottlenecks', name: 'Dynamic Hotspots Ranking', icon: AlertTriangle },
           { id: 'recommendations', name: '👷 Actionable Recommendations', icon: Layers }
         ].map((t) => {
           const TabIcon = t.icon;

@@ -211,7 +211,7 @@ export default function JunctionPage() {
                 <Video className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-xl font-bold text-slate-200">No Cameras Configured</h3>
                 <p className="text-slate-400 mt-2">This junction has no vision sensing configured.</p>
-                <Link to="/add-junction" className="mt-6 inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-900/300 text-white px-6 py-3 rounded-lg font-bold transition-colors shadow">
+                <Link to={`/add-node?type=junction&id=${id}`} className="mt-6 inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-900/300 text-white px-6 py-3 rounded-lg font-bold transition-colors shadow">
                   <Zap className="h-4 w-4" /> Edit Node
                 </Link>
               </div>
@@ -231,14 +231,14 @@ export default function JunctionPage() {
                    <thead>
                      <tr className="border-b border-slate-800 text-slate-400 uppercase tracking-wider font-semibold bg-slate-900/60">
                        <th className="py-3.5 px-4">Approach Lane</th>
-                       <th className="py-3.5 px-4">🚗 Cars</th>
-                       <th className="py-3.5 px-4">🏍 2-Wheelers</th>
-                       <th className="py-3.5 px-4">🛺 Autos</th>
-                       <th className="py-3.5 px-4">🚌 Buses</th>
-                       <th className="py-3.5 px-4">🚚 Trucks</th>
+                       <th className="py-3.5 px-4">Cars</th>
+                       <th className="py-3.5 px-4">2-Wheelers</th>
+                       <th className="py-3.5 px-4">Autos</th>
+                       <th className="py-3.5 px-4">Buses</th>
+                       <th className="py-3.5 px-4">Trucks</th>
                        <th className="py-3.5 px-4">🧮 Total Count (PCE)</th>
                        <th className="py-3.5 px-4">📏 Accurate Queue Length</th>
-                       <th className="py-3.5 px-4 text-right">🟢 Signal Allocation</th>
+                       <th className="py-3.5 px-4 text-right">Signal Allocation</th>
                      </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-850/60">
@@ -247,7 +247,13 @@ export default function JunctionPage() {
                        return (
                          <tr key={idx} className={`transition-colors ${isGreen ? 'bg-emerald-950/20' : 'hover:bg-slate-900/40'} text-slate-500`}>
                            <td className={`py-4 px-4 font-bold ${isGreen ? 'text-emerald-400' : 'text-slate-400'}`}>{cam.name || `Lane ${idx + 1}`}</td>
-                           <td colSpan="7" className="py-4 px-4 text-center italic">No feed analyzed. Click 'Analyze CCTV Feeds' to compute telemetry.</td>
+                           <td className="py-4 px-4 font-mono">{telemetry?.lanesData?.[idx]?.cars ?? 0}</td>
+                           <td className="py-4 px-4 font-mono">{telemetry?.lanesData?.[idx]?.bikes ?? 0}</td>
+                           <td className="py-4 px-4 font-mono">{telemetry?.lanesData?.[idx]?.autos ?? 0}</td>
+                           <td className="py-4 px-4 font-mono">{telemetry?.lanesData?.[idx]?.buses ?? 0}</td>
+                           <td className="py-4 px-4 font-mono">{telemetry?.lanesData?.[idx]?.heavy ?? 0}</td>
+                           <td className="py-4 px-4 font-bold text-slate-300">{telemetry?.lanesData?.[idx]?.total ?? 0}</td>
+                           <td className="py-4 px-4 font-bold text-amber-400">{telemetry?.lanesData?.[idx]?.queue ?? 0} veh</td>
                            <td className="py-4 px-4 text-right">
                              {isGreen ? (
                                <span className="px-2 py-1 border border-emerald-500/50 rounded bg-emerald-950/60 text-emerald-400 font-mono text-[10px] shadow-[0_0_10px_rgba(16,185,129,0.3)] animate-pulse">LIVE GREEN</span>
@@ -375,7 +381,7 @@ export default function JunctionPage() {
                   <div className="mt-8 text-center">
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Current Signal Light Status</p>
                     <div className={`px-6 py-2 border font-bold rounded-full text-sm inline-block shadow-sm transition-all ${globalState === 'ALL_RED' || (globalState === 'NORMAL' && activePhase === null) ? 'bg-red-950/50 border-red-900 text-red-500' : 'bg-green-950/50 border-green-900 text-green-500'}`}>
-                      {globalState === 'ALL_RED' || (globalState === 'NORMAL' && activePhase === null) ? '🔴 RED LIGHT (STOP)' : globalState === 'ALL_GREEN' ? '🟢 ALL GREEN (HOLD)' : `🟢 GREEN (LANE ${activePhase + 1})`}
+                      {globalState === 'ALL_RED' || (globalState === 'NORMAL' && activePhase === null) ? 'RED LIGHT (STOP)' : globalState === 'ALL_GREEN' ? 'ALL GREEN (HOLD)' : `GREEN (LANE ${activePhase + 1})`}
                     </div>
                   </div>
                </div>
@@ -395,28 +401,28 @@ export default function JunctionPage() {
                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isGreen ? 'bg-green-900/50 text-green-400' : 'bg-blue-900/30 text-blue-400'}`}><Navigation className="h-4 w-4" /></div>
                              <span className="text-sm font-bold text-slate-200">{cam.name || `Lane ${idx + 1} - Approach`}</span>
                            </div>
-                           <span className={`px-2 py-1 text-xs font-bold rounded border ${isGreen ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>{isGreen ? '🟢 GREEN' : '🔴 RED'}</span>
+                           <span className={`px-2 py-1 text-xs font-bold rounded border ${isGreen ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>{isGreen ? 'GREEN' : 'RED'}</span>
                          </div>
                          
                          <div className="bg-slate-950/50 p-3 rounded-lg border border-slate-800/50 space-y-2">
                            <div className="flex items-center justify-between text-xs text-slate-300">
-                             <span>Total Vehicles: <strong className="text-emerald-400">No data</strong></span>
-                             <span>Queue: <strong className="text-cyan-400">No data</strong></span>
-                             <span>Allocated Time: <strong className="text-amber-400">N/A</strong></span>
+                             <span>Total Vehicles: <strong className="text-emerald-400">{telemetry?.lanesData?.[idx]?.total ?? 'No data'}</strong></span>
+                             <span>Queue: <strong className="text-cyan-400">{telemetry?.lanesData?.[idx]?.queue ?? 'No data'}</strong></span>
+                             <span>Allocated Time: <strong className="text-amber-400">{telemetry?.lanesData?.[idx]?.allocatedTime ? telemetry.lanesData[idx].allocatedTime + 's' : 'N/A'}</strong></span>
                            </div>
                            <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-800/50 text-[10px] text-slate-400">
-                             <span>🚗 Cars: <strong className="text-slate-200">N/A</strong></span>
-                             <span>🏍 2W: <strong className="text-slate-200">N/A</strong></span>
-                             <span>🛺 Autos: <strong className="text-slate-200">N/A</strong></span>
-                             <span>🚌 Buses: <strong className="text-slate-200">N/A</strong></span>
-                             <span>🚚 Heavy: <strong className="text-slate-200">N/A</strong></span>
+                             <span>Cars: <strong className="text-slate-200">{telemetry?.lanesData?.[idx]?.cars ?? 'N/A'}</strong></span>
+                             <span>2W: <strong className="text-slate-200">{telemetry?.lanesData?.[idx]?.bikes ?? 'N/A'}</strong></span>
+                             <span>Autos: <strong className="text-slate-200">{telemetry?.lanesData?.[idx]?.autos ?? 'N/A'}</strong></span>
+                             <span>Buses: <strong className="text-slate-200">{telemetry?.lanesData?.[idx]?.buses ?? 'N/A'}</strong></span>
+                             <span>Heavy: <strong className="text-slate-200">{telemetry?.lanesData?.[idx]?.heavy ?? 'N/A'}</strong></span>
                            </div>
                          </div>
                          
                          <div className="grid grid-cols-3 gap-2 mt-2">
-                           <button onClick={() => handleSetGreen(idx)} className={`py-2.5 px-1 rounded-lg font-bold text-[10px] transition-colors flex justify-center items-center gap-1 ${isGreen ? 'bg-green-500 text-white border-green-400 shadow-[0_0_10px_rgba(34,197,94,0.4)]' : 'bg-emerald-950/30 text-emerald-400 border border-emerald-900 hover:bg-emerald-500/20'}`}>🟢 GREEN</button>
-                           <button onClick={() => handleSetGreen(null)} className={`py-2.5 px-1 rounded-lg font-bold text-[10px] transition-colors flex justify-center items-center gap-1 ${!isGreen ? 'bg-red-600 text-white border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.4)]' : 'bg-red-950/30 text-red-400 border border-red-900 hover:bg-red-600/20'}`}>🔴 RED</button>
-                           <button className="py-2.5 px-1 rounded-lg font-bold text-[10px] bg-blue-950/30 text-blue-400 border border-blue-900 hover:bg-blue-600/20 transition-colors flex justify-center items-center gap-1">▶️ START</button>
+                           <button onClick={() => handleSetGreen(idx)} className={`py-2.5 px-1 rounded-lg font-bold text-[10px] transition-colors flex justify-center items-center gap-1 ${isGreen ? 'bg-green-500 text-white border-green-400 shadow-[0_0_10px_rgba(34,197,94,0.4)]' : 'bg-emerald-950/30 text-emerald-400 border border-emerald-900 hover:bg-emerald-500/20'}`}>GREEN</button>
+                           <button onClick={() => handleSetGreen(null)} className={`py-2.5 px-1 rounded-lg font-bold text-[10px] transition-colors flex justify-center items-center gap-1 ${!isGreen ? 'bg-red-600 text-white border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.4)]' : 'bg-red-950/30 text-red-400 border border-red-900 hover:bg-red-600/20'}`}>RED</button>
+                           <button className="py-2.5 px-1 rounded-lg font-bold text-[10px] bg-blue-950/30 text-blue-400 border border-blue-900 hover:bg-blue-600/20 transition-colors flex justify-center items-center gap-1">START</button>
                          </div>
                        </div>
                      )})}

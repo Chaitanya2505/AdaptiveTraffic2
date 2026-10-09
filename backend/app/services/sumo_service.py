@@ -15,17 +15,7 @@ if "SUMO_HOME" in os.environ:
     tools = os.path.join(os.environ["SUMO_HOME"], "tools")
     if tools not in sys.path:
         sys.path.append(tools)
-else:
-    for default_dir in [
-        r"C:\Program Files (x86)\Eclipse\Sumo\tools",
-        r"C:\Program Files\Eclipse\Sumo\tools",
-        "/usr/share/sumo/tools",
-        "/opt/homebrew/opt/sumo/share/sumo/tools"
-    ]:
-        if os.path.exists(default_dir) and default_dir not in sys.path:
-            sys.path.append(default_dir)
-            os.environ["SUMO_HOME"] = os.path.dirname(default_dir)
-            break
+    pass
 
 try:
     import traci
@@ -1007,7 +997,7 @@ class SumoService:
         self.ensure_network()
 
         # 2. Start SUMO subprocess
-        sumo_binary = "sumo"  # Run headless inside backend
+        sumo_binary = "/Users/atharvachoudhari/AdaptiveTraffic2/backend/venv/bin/sumo"  # Run headless inside backend
         sumo_cmd = [sumo_binary, "-c", self.sumocfg_path]
 
         print(f"Starting {sumo_binary} and initializing TraCI...")
@@ -1021,7 +1011,8 @@ class SumoService:
                     pass
             self.traci_started = True
             self.is_initialized = True
-            print("TraCI initialized successfully with 4-junction corridor network.")
+            self.inject_traffic_influx(pattern="grid_surge", count=150)
+            print("TraCI initialized successfully with 4-junction corridor network and initial traffic surge.")
         except Exception as e:
             print(f"Failed to start SUMO / TraCI: {e}")
             self.traci_started = False

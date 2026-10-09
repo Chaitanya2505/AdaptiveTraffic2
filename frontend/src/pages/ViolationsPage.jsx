@@ -476,7 +476,7 @@ export default function ViolationsPage() {
                 {isDetecting && activeIntrusionsCount > 0 && (
                   <div className="bg-red-600 text-white text-[11px] font-black px-2.5 py-0.5 rounded animate-pulse flex items-center gap-1.5">
                     <ShieldAlert className="h-3.5 w-3.5" />
-                    🚨 UVH-26 BRT LANE INTRUSION DETECTED ({activeIntrusionsCount})
+                    UVH-26 BRT LANE INTRUSION DETECTED ({activeIntrusionsCount})
                   </div>
                 )}
               </div>
@@ -526,7 +526,7 @@ export default function ViolationsPage() {
 
               const borderColor = isIntrusion ? '#ef4444' : isBus ? '#22c55e' : '#06b6d4';
               const badgeBg = isIntrusion ? 'bg-red-600 text-white font-extrabold' : isBus ? 'bg-emerald-600 text-white font-bold' : 'bg-cyan-600 text-black font-bold';
-              const badgeLabel = isIntrusion ? `🚨 INTRUSION: ${det.vehicle_class.toUpperCase()}` : isBus ? `🚌 BUS [BRT AUTHORIZED]` : det.vehicle_class;
+              const badgeLabel = isIntrusion ? `INTRUSION: ${det.vehicle_class.toUpperCase()}` : isBus ? `BUS [BRT AUTHORIZED]` : det.vehicle_class;
 
               return (
                 <div

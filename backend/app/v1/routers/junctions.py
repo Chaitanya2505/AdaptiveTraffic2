@@ -25,7 +25,9 @@ async def get_junction_details(junction_id: str, db: AsyncSession = Depends(get_
         "node": {
             "id": node.id,
             "name": node.name,
-            "type": getattr(node, "node_type", "junction"),
+            "type": getattr(node, "node_type", "brts" if getattr(node, "has_brts", False) else "junction"),
+            "lat": node.latitude,
+            "lng": node.longitude,
             "cameras": node.cameras,
             "status": node.status
         }
@@ -38,7 +40,8 @@ async def get_junction_telemetry(junction_id: str, db: AsyncSession = Depends(ge
     node = result.scalar_one_or_none()
     
     if not node:
-        return {"status": "error", "message": "Node not found."}
+        # Fallback for UI if DB is empty
+        pass
         
     throughput = random.randint(800, 1500)
     delay = random.randint(15, 60)
@@ -67,7 +70,7 @@ async def get_junction_telemetry(junction_id: str, db: AsyncSession = Depends(ge
         "WEST": {"queue": max(0, queue - 10), "wait": 22.0}
     }
     
-    current_mode = getattr(node, 'optimization_mode', 'DRL') or 'DRL'
+    current_mode = getattr(node, 'optimization_mode', 'DRL') if node else 'DRL'
     
     # Run the mathematically sound traffic engine with our simulated current loads
     lane_counts = {
@@ -101,6 +104,13 @@ async def get_junction_telemetry(junction_id: str, db: AsyncSession = Depends(ge
         {"phase": "EW-Right", "greenTime": p_plan.get("LANE_4_WEST", 30) // 2}
     ]
         
+    lanes_data = [
+        {"total": queue + 15, "queue": queue, "allocatedTime": p_plan.get("LANE_1_NORTH", 30), "cars": max(0, queue - 2), "bikes": 5, "autos": 3, "buses": 1, "heavy": 2},
+        {"total": max(0, queue - 5) + 12, "queue": max(0, queue - 5), "allocatedTime": p_plan.get("LANE_2_SOUTH", 30), "cars": max(0, queue - 7), "bikes": 3, "autos": 2, "buses": 0, "heavy": 1},
+        {"total": queue + 10, "queue": queue + 2, "allocatedTime": p_plan.get("LANE_3_EAST", 30) // 2, "cars": max(0, queue - 1), "bikes": 4, "autos": 2, "buses": 1, "heavy": 0},
+        {"total": max(0, queue - 10) + 18, "queue": max(0, queue - 10), "allocatedTime": p_plan.get("LANE_4_WEST", 30) // 2, "cars": max(0, queue - 12), "bikes": 6, "autos": 4, "buses": 2, "heavy": 1}
+    ]
+        
     return {
         "status": "ok", 
         "junctionId": junction_id, 
@@ -112,7 +122,8 @@ async def get_junction_telemetry(junction_id: str, db: AsyncSession = Depends(ge
             "co2Emissions": co2_emissions,
             "trends": trends,
             "phaseDistribution": phase_distribution,
-            "currentMode": current_mode
+            "currentMode": current_mode,
+            "lanesData": lanes_data
         }
     }
 
@@ -126,7 +137,9 @@ async def update_junction_mode(junction_id: str, payload: ModeUpdate, db: AsyncS
     result = await db.execute(select(Junction).where(Junction.id == junction_id))
     node = result.scalar_one_or_none()
     if not node:
-        return {"status": "error", "message": "Node not found"}
+        # Create it if missing
+        node = Junction(id=junction_id, name=f"Junction {junction_id}", latitude=0, longitude=0)
+        db.add(node)
         
     node.optimization_mode = payload.mode
     await db.commit()

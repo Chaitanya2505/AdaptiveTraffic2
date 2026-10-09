@@ -48,22 +48,7 @@ export default function MonitorPage() {
   const [trafficDensityData, setTrafficDensityData] = useState(generateInitialData());
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTrafficDensityData(prev => {
-        const newData = [...prev.slice(1)];
-        const last = prev[prev.length - 1];
-        const t = new Date();
-        newData.push({
-          time: t.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          density: Math.max(10, Math.min(100, last.density + (Math.random() * 10 - 5))),
-          speed: Math.max(0, Math.min(60, last.speed + (Math.random() * 6 - 3))),
-        });
-        return newData;
-      });
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
+
 
   useEffect(() => {
     fetch('http://localhost:8000/api/v1/map/nodes')
@@ -169,7 +154,7 @@ export default function MonitorPage() {
                         )}
 
                         <button 
-                          onClick={() => navigate(`/${node.type}s/${node.id}`)}
+                          onClick={() => navigate(node.type === 'brts' ? `/brts-nodes/${node.id}` : `/junctions/${node.id}`)}
                           className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded transition-colors text-sm"
                         >
                           Open Control Center

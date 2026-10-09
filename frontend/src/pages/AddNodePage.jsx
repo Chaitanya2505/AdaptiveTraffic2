@@ -1,6 +1,6 @@
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Plus, Camera, Trash2, MapPin, Activity, Shield } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function AddNodePage() {
   const navigate = useNavigate();
@@ -10,6 +10,26 @@ export default function AddNodePage() {
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
   const [cameras, setCameras] = useState([{ id: 1, name: 'North Bound Lane', url: '' }]);
+  const editId = searchParams.get('id');
+
+  useEffect(() => {
+    if (editId) {
+      fetch(`http://localhost:8000/api/v1/junctions/${editId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'ok' && data.node) {
+            setNodeName(data.node.name || '');
+            setNodeType(data.node.type || 'junction');
+            setLat(data.node.lat || '');
+            setLng(data.node.lng || '');
+            if (data.node.cameras && data.node.cameras.length > 0) {
+              setCameras(data.node.cameras);
+            }
+          }
+        })
+        .catch(err => console.error("Failed to fetch node for edit", err));
+    }
+  }, [editId]);
 
   const handleTypeChange = (type) => {
     setNodeType(type);
@@ -35,10 +55,11 @@ export default function AddNodePage() {
   const handleSave = async (e) => {
     e.preventDefault();
     
-    // Automatically generate ID if none is provided
-    let finalId = nodeName.replace(/\s+/g, '-').substring(0, 10).toUpperCase();
-    if (nodeType === 'junction' && !finalId.startsWith('J-')) finalId = 'J-' + finalId;
-    if (nodeType === 'brts' && !finalId.startsWith('B-')) finalId = 'B-' + finalId;
+    let finalId = editId || nodeName.replace(/\s+/g, '-').substring(0, 10).toUpperCase();
+    if (!editId) {
+      if (nodeType === 'junction' && !finalId.startsWith('J-')) finalId = 'J-' + finalId;
+      if (nodeType === 'brts' && !finalId.startsWith('B-')) finalId = 'B-' + finalId;
+    }
     
     try {
       const response = await fetch('http://localhost:8000/api/v1/map/nodes', {
@@ -115,7 +136,7 @@ export default function AddNodePage() {
                   value={nodeName}
                   onChange={e => setNodeName(e.target.value)}
                   placeholder={nodeType === 'junction' ? "e.g., J-021 Vesu Main Road" : "e.g., B-105 VIP Road BRTS"}
-                  className="w-full px-4 py-3 rounded-lg border border-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                  className="w-full px-4 py-3 bg-slate-700 text-slate-100 placeholder-slate-400 rounded-lg border border-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -128,7 +149,7 @@ export default function AddNodePage() {
                     value={lat}
                     onChange={(e) => setLat(e.target.value)}
                     placeholder="e.g., 21.1702"
-                    className="w-full px-4 py-3 rounded-lg border border-slate-600 focus:border-blue-500 outline-none transition-all font-mono"
+                    className="w-full px-4 py-3 bg-slate-700 text-slate-100 placeholder-slate-400 rounded-lg border border-slate-600 focus:border-blue-500 outline-none transition-all font-mono"
                   />
                 </div>
                 <div>
@@ -140,7 +161,7 @@ export default function AddNodePage() {
                     value={lng}
                     onChange={(e) => setLng(e.target.value)}
                     placeholder="e.g., 72.8311"
-                    className="w-full px-4 py-3 rounded-lg border border-slate-600 focus:border-blue-500 outline-none transition-all font-mono"
+                    className="w-full px-4 py-3 bg-slate-700 text-slate-100 placeholder-slate-400 rounded-lg border border-slate-600 focus:border-blue-500 outline-none transition-all font-mono"
                   />
                 </div>
               </div>
@@ -168,7 +189,7 @@ export default function AddNodePage() {
                         value={camera.name}
                         onChange={e => updateCamera(camera.id, 'name', e.target.value)}
                         placeholder="e.g., North Bound"
-                        className="w-full px-3 py-2 rounded-md border border-slate-600 focus:border-blue-500 outline-none text-sm"
+                        className="w-full px-3 py-2 bg-slate-700 text-slate-100 placeholder-slate-400 rounded-md border border-slate-600 focus:border-blue-500 outline-none text-sm"
                       />
                     </div>
                     <div>
@@ -181,7 +202,7 @@ export default function AddNodePage() {
                         value={camera.url}
                         onChange={e => updateCamera(camera.id, 'url', e.target.value)}
                         placeholder="(Optional) rtsp://admin:pass@192.168.1.100/stream"
-                        className="w-full px-3 py-2 rounded-md border border-slate-600 focus:border-blue-500 outline-none text-sm font-mono text-blue-600"
+                        className="w-full px-3 py-2 bg-slate-700 text-slate-100 placeholder-slate-400 rounded-md border border-slate-600 focus:border-blue-500 outline-none text-sm font-mono text-blue-400"
                       />
                     </div>
                   </div>

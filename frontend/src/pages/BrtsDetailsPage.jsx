@@ -252,7 +252,7 @@ export default function BRTSPage() {
                 <div className="col-span-full bg-slate-800 border border-slate-700 rounded-xl p-12 text-center shadow-sm">
                   <Video className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-xl font-bold text-slate-200">No BRTS Cameras Configured</h3>
-                  <Link to="/add-junction" className="mt-6 inline-flex items-center gap-2 bg-orange-600 hover:bg-orange-900/300 text-white px-6 py-3 rounded-lg font-bold transition-colors shadow">
+                  <Link to={`/add-node?type=brts&id=${id}`} className="mt-6 inline-flex items-center gap-2 bg-orange-600 hover:bg-orange-900/300 text-white px-6 py-3 rounded-lg font-bold transition-colors shadow">
                     <ShieldAlert className="h-4 w-4" /> Configure BRTS Node
                   </Link>
                 </div>

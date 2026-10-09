@@ -1,15 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useDataStore } from '../../store/dataStore';
-import { Menu, Bell, User, LogOut, ChevronDown } from 'lucide-react';
+import { Menu, User, LogOut, ChevronDown } from 'lucide-react';
 
 export default function TopBar({ onMenuToggle }) {
   const { user, logout } = useAuth();
   const alerts = useDataStore((state) => state.alerts);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-
-  // Count active warnings and critical alerts
-  const activeAlertCount = alerts.filter(a => a.severity === 'CRITICAL' || a.severity === 'WARNING').length;
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-slate-800 bg-slate-950 px-6">
@@ -27,16 +24,6 @@ export default function TopBar({ onMenuToggle }) {
       </div>
 
       <div className="flex items-center gap-6">
-        {/* Notifications Alert Count */}
-        <div className="relative cursor-pointer rounded-full p-2 text-slate-400 hover:bg-slate-900 hover:text-white">
-          <Bell className="h-5 w-5" />
-          {activeAlertCount > 0 && (
-            <span className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-slate-950 animate-pulse">
-              {activeAlertCount}
-            </span>
-          )}
-        </div>
-
         {/* User Profile Dropdown */}
         <div className="relative">
           <button 
