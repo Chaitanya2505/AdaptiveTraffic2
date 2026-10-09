@@ -41,7 +41,12 @@ async def seed_data():
             
         # Seed / Sync initial 20 junctions
         surat_junctions_data = [
-            {"id": "J-001", "name": "SVNIT Junction", "latitude": 21.167790, "longitude": 72.785022, "num_lanes": 4, "has_brts": True, "status": "active"},
+            {"id": "J-001", "name": "SVNIT Junction", "latitude": 21.167790, "longitude": 72.785022, "num_lanes": 4, "has_brts": False, "status": "active", "cameras": [
+                {"id": 1, "name": "North Bound Lane", "url": "/videos/cam1.mp4"},
+                {"id": 2, "name": "South Bound Lane", "url": "/videos/cam2.mp4"},
+                {"id": 3, "name": "East Bound Lane", "url": "/videos/cam3.mp4"},
+                {"id": 4, "name": "West Bound Lane", "url": "/videos/cam4.mp4"}
+            ]},
             {"id": "J-002", "name": "Majura Gate BRTS Hub", "latitude": 21.182450, "longitude": 72.823200, "num_lanes": 6, "has_brts": True, "status": "active"},
             {"id": "J-003", "name": "Ghod Dod Road Junction", "latitude": 21.175400, "longitude": 72.805200, "num_lanes": 4, "has_brts": False, "status": "active"},
             {"id": "J-004", "name": "Sahara Darwaja Junction", "latitude": 21.196600, "longitude": 72.846500, "num_lanes": 6, "has_brts": True, "status": "active"},
@@ -76,6 +81,8 @@ async def seed_data():
                 j_obj.num_lanes = jdata["num_lanes"]
                 j_obj.has_brts = jdata["has_brts"]
                 j_obj.status = jdata["status"]
+                if "cameras" in jdata:
+                    j_obj.cameras = jdata["cameras"]
             else:
                 db.add(Junction(**jdata))
             

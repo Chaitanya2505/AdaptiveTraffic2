@@ -159,11 +159,11 @@ export default function JunctionPage() {
                   <div className="p-3 border-b border-slate-700 flex items-center gap-2 font-bold text-slate-200 text-sm bg-slate-900">
                     <Video className="h-4 w-4 text-blue-400" /> {cam.name || `Camera ${idx + 1}`}
                   </div>
-                  {(cam.url || id === 'J-001') ? (
+                  {(cam.url) ? (
                     <div className="flex-1 bg-black relative flex items-center justify-center overflow-hidden group">
-                      {id === 'J-001' ? (
+                      {cam.url.endsWith('.mp4') ? (
                         <video 
-                           src={`/videos/j01_lane${idx + 1}.mp4`} 
+                           src={cam.url} 
                            autoPlay 
                            loop 
                            muted 
@@ -174,7 +174,7 @@ export default function JunctionPage() {
                         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1449824913935-59a10b8d2000?auto=format&fit=crop&q=80&w=1920')] bg-cover bg-center opacity-60"></div>
                       )}
                       
-                      {id !== 'J-001' && (
+                      {!cam.url.endsWith('.mp4') && (
                         <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 pointer-events-none">
                           <div className="border-r border-b border-yellow-500/30 flex items-center justify-center">
                             <div className="border border-yellow-500/80 w-24 h-24 absolute top-10 left-10 shadow-[0_0_10px_rgba(234,179,8,0.5)]"></div>
@@ -243,7 +243,7 @@ export default function JunctionPage() {
                    </thead>
                    <tbody className="divide-y divide-slate-850/60">
                      {displayCameras?.map((cam, idx) => {
-                       const isGreen = activePhase === idx && globalState === 'NORMAL';
+                       const isGreen = (activePhase === idx && globalState === 'NORMAL') || globalState === 'ALL_GREEN';
                        return (
                          <tr key={idx} className={`transition-colors ${isGreen ? 'bg-emerald-950/20' : 'hover:bg-slate-900/40'} text-slate-500`}>
                            <td className={`py-4 px-4 font-bold ${isGreen ? 'text-emerald-400' : 'text-slate-400'}`}>{cam.name || `Lane ${idx + 1}`}</td>
@@ -259,8 +259,10 @@ export default function JunctionPage() {
                                <span className="px-2 py-1 border border-emerald-500/50 rounded bg-emerald-950/60 text-emerald-400 font-mono text-[10px] shadow-[0_0_10px_rgba(16,185,129,0.3)] animate-pulse">LIVE GREEN</span>
                              ) : globalState === 'ALL_RED' ? (
                                <span className="px-2 py-1 border border-red-500/50 rounded bg-red-950/60 text-red-400 font-mono text-[10px]">ALL RED</span>
+                             ) : activePhase !== null ? (
+                               <span className="px-2 py-1 border border-red-500/30 rounded bg-red-950/40 text-red-400 font-mono text-[10px]">RED (WAIT)</span>
                              ) : (
-                               <span className="px-2 py-1 border border-slate-600 rounded bg-slate-800 text-slate-400 font-mono text-[10px]">OFFLINE</span>
+                               <span className="px-2 py-1 border border-blue-500/30 rounded bg-blue-950/40 text-blue-400 font-mono text-[10px]">AUTO: {telemetry?.lanesData?.[idx]?.allocatedTime || 30}s</span>
                              )}
                            </td>
                          </tr>
@@ -374,14 +376,14 @@ export default function JunctionPage() {
                   <p className="text-xs text-slate-400 w-full mb-6">Real-time signal head at {node?.name || id}</p>
                   
                   <div className="w-28 h-64 bg-slate-900 border-2 border-slate-700 rounded-full flex flex-col items-center justify-between py-6">
-                     <div className={`w-16 h-16 rounded-full border-4 flex items-center justify-center font-bold text-white transition-all ${globalState === 'ALL_RED' || (globalState === 'NORMAL' && activePhase === null) ? 'bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.6)] border-red-900' : 'bg-slate-800 border-slate-700 text-transparent'}`}>0s</div>
-                     <div className={`w-16 h-16 rounded-full border-4 transition-all ${globalState === 'NORMAL' && activePhase !== null && false ? 'bg-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.6)] border-yellow-900' : 'bg-slate-800 border-slate-700'}`}></div>
+                     <div className={`w-16 h-16 rounded-full border-4 flex items-center justify-center font-bold text-white transition-all ${globalState === 'ALL_RED' ? 'bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.6)] border-red-900' : 'bg-slate-800 border-slate-700 text-transparent'}`}>0s</div>
+                     <div className={`w-16 h-16 rounded-full border-4 flex items-center justify-center font-bold text-white transition-all ${globalState === 'NORMAL' && activePhase === null ? 'bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.6)] border-blue-900' : 'bg-slate-800 border-slate-700 text-transparent'}`}>{globalState === 'NORMAL' && activePhase === null ? 'AI' : ''}</div>
                      <div className={`w-16 h-16 rounded-full border-4 transition-all ${(globalState === 'NORMAL' && activePhase !== null) || globalState === 'ALL_GREEN' ? 'bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.6)] border-green-900' : 'bg-slate-800 border-slate-700'}`}></div>
                   </div>
                   <div className="mt-8 text-center">
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Current Signal Light Status</p>
-                    <div className={`px-6 py-2 border font-bold rounded-full text-sm inline-block shadow-sm transition-all ${globalState === 'ALL_RED' || (globalState === 'NORMAL' && activePhase === null) ? 'bg-red-950/50 border-red-900 text-red-500' : 'bg-green-950/50 border-green-900 text-green-500'}`}>
-                      {globalState === 'ALL_RED' || (globalState === 'NORMAL' && activePhase === null) ? 'RED LIGHT (STOP)' : globalState === 'ALL_GREEN' ? 'ALL GREEN (HOLD)' : `GREEN (LANE ${activePhase + 1})`}
+                    <div className={`px-6 py-2 border font-bold rounded-full text-sm inline-block shadow-sm transition-all ${globalState === 'ALL_RED' ? 'bg-red-950/50 border-red-900 text-red-500' : globalState === 'NORMAL' && activePhase === null ? 'bg-blue-950/50 border-blue-900 text-blue-400' : 'bg-green-950/50 border-green-900 text-green-500'}`}>
+                      {globalState === 'ALL_RED' ? 'ALL RED (STOP)' : globalState === 'NORMAL' && activePhase === null ? 'AI AUTO CYCLE (ACTIVE)' : globalState === 'ALL_GREEN' ? 'ALL GREEN (HOLD)' : `GREEN (LANE ${activePhase + 1})`}
                     </div>
                   </div>
                </div>
