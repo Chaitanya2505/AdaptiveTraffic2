@@ -4,6 +4,12 @@ import { useAuth } from './hooks/useAuth';
 import { useDataStore } from './store/dataStore';
 import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
+import MonitorPage from './pages/MonitorPage';
+import JunctionNodesPage from './pages/JunctionNodesPage';
+import BrtsNodesPage from './pages/BrtsNodesPage';
+import JunctionDetailsPage from './pages/JunctionDetailsPage';
+import BrtsDetailsPage from './pages/BrtsDetailsPage';
+import AddNodePage from './pages/AddNodePage';
 import VisionPage from './pages/VisionPage';
 import SignalsPage from './pages/SignalsPage';
 import ViolationsPage from './pages/ViolationsPage';
@@ -131,6 +137,13 @@ export default function App() {
         
         {/* Protected Dashboard pages */}
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/monitor" element={<ProtectedRoute><MonitorPage /></ProtectedRoute>} />
+        <Route path="/junction-nodes" element={<ProtectedRoute><JunctionNodesPage /></ProtectedRoute>} />
+        <Route path="/brts-nodes" element={<ProtectedRoute><BrtsNodesPage /></ProtectedRoute>} />
+        <Route path="/junctions/:id" element={<ProtectedRoute><JunctionDetailsPage /></ProtectedRoute>} />
+        <Route path="/brts-nodes/:id" element={<ProtectedRoute><BrtsDetailsPage /></ProtectedRoute>} />
+        <Route path="/add-node" element={<ProtectedRoute><AddNodePage /></ProtectedRoute>} />
+        
         <Route path="/vision" element={<ProtectedRoute><VisionPage /></ProtectedRoute>} />
         <Route path="/signals" element={<ProtectedRoute><SignalsPage /></ProtectedRoute>} />
         <Route path="/violations" element={<ProtectedRoute><BRTSLaneGuardPage /></ProtectedRoute>} />

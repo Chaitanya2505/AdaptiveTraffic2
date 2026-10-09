@@ -15,6 +15,9 @@ import {
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/monitor', label: 'Monitor', icon: Eye },
+  { path: '/junction-nodes', label: 'Junction Nodes', icon: TrafficCone },
+  { path: '/brts-nodes', label: 'BRTS Nodes', icon: ShieldAlert },
   { path: '/vision', label: 'Vision Sensing', icon: Eye },
   { path: '/signals', label: 'Manual Signal Control', icon: TrafficCone },
   { path: '/brts', label: 'BRTS Lane Guard', icon: ShieldAlert },

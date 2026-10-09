@@ -38,9 +38,9 @@ import {
 
 const SCENARIOS = [
   { 
-    id: 'safe_rl', 
-    name: 'Safe-RL Ensemble Control (AI)', 
-    desc: 'Uses Proximal Policy Optimization (PPO) Deep Reinforcement Learning for dynamic signaling, bounded by Webster\'s mathematical safety limits to guarantee absolute civic safety.', 
+    id: 'drl', 
+    name: 'Deep Q-Network (DQN) Control', 
+    desc: 'Uses a trained Deep Q-Network (DQN) for dynamic signaling, bounded by Webster\'s mathematical safety limits to guarantee absolute civic safety.', 
     icon: Activity, 
     color: 'text-violet-400', 
     badge: 'AI-Ensemble' 
